@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+      聚合 POM（仅用于以多模块形式在 IDEA 中打开整个目录）。
+      注意：这里的 modules 不构成父子继承关系——
+      各子项目仍以 spring-boot-starter-parent 作为自己的 parent，
+      本 POM 只负责聚合与统一构建入口，不向子项目传递任何依赖/属性。
+    -->
+    <groupId>cn.song</groupId>
+    <artifactId>mybatis-plus-sql-visualizer-demo</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>mybatis-plus-sql-visualizer-demo</name>
+    <description>mybatis-plus-sql-visualizer 插件测试用例 Demo 集合（多模块聚合）</description>
+
+    <modules>
+        <module>mybatis-plus-demo</module>
+        <module>mybatis-plus-join-demo</module>
+        <module>jpa-hibernate-demo</module>
+    </modules>
+</project>

@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.song.mybatisplusdemo.mapper.UserMapper">
+
+    <resultMap type="cn.song.mybatisplusdemo.entity.User" id="BaseResultMap">
+        <id property="id" column="id" jdbcType="INTEGER"/>
+        <result property="username" column="username" jdbcType="VARCHAR"/>
+        <result property="password" column="password" jdbcType="VARCHAR"/>
+        <result property="age" column="age" jdbcType="INTEGER"/>
+        <result property="email" column="email" jdbcType="VARCHAR"/>
+        <result property="roleId" column="role_id" jdbcType="INTEGER"/>
+        <result property="deptId" column="dept_id" jdbcType="INTEGER"/>
+        <result property="status" column="status" jdbcType="INTEGER"/>
+        <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+        <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
+        <result property="deleted" column="deleted" jdbcType="INTEGER"/>
+        <result property="version" column="version" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, username, password, age, email, role_id, dept_id, status, create_time, update_time, deleted, version
+    </sql>
+
+    <!-- XML 动态 SQL：where + if 组合查询 -->
+    <select id="selectUserListByXml" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from user
+        <where>
+            <if test="username != null and username != ''">
+                and username like concat('%', #{username}, '%')
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+            <if test="age != null">
+                and age &gt;= #{age}
+            </if>
+        </where>
+        order by id desc
+    </select>
+
+    <!-- XML 动态 SQL：foreach 批量 IN 查询 -->
+    <select id="selectUserBatchByIds" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from user
+        where id in
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        and deleted = 0
+    </select>
+
+    <!-- XML 动态 SQL：set + if 动态更新 -->
+    <update id="updateUserByXml">
+        update user
+        <set>
+            <if test="username != null and username != ''">
+                username = #{username},
+            </if>
+            <if test="email != null">
+                email = #{email},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            update_time = now()
+        </set>
+        where id = #{id} and deleted = 0
+    </update>
+
+    <!-- XML 动态 SQL：trim 自定义前缀后缀 -->
+    <select id="selectUserByTrim" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from user
+        <trim prefix="where" prefixOverrides="and |or ">
+            <if test="username != null and username != ''">
+                and username = #{username}
+            </if>
+            <if test="roleId != null">
+                and role_id = #{roleId}
+            </if>
+            <if test="deptId != null">
+                and dept_id = #{deptId}
+            </if>
+        </trim>
+    </select>
+
+    <!-- XML 动态 SQL：choose/when/otherwise 分支 -->
+    <select id="selectUserByChoose" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from user
+        where deleted = 0
+        <choose>
+            <when test="username != null and username != ''">
+                and username like concat('%', #{username}, '%')
+            </when>
+            <when test="email != null">
+                and email = #{email}
+            </when>
+            <otherwise>
+                and status = 1
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- XML 动态 SQL：bind 变量 + 模糊查询 -->
+    <select id="selectUserByBind" resultMap="BaseResultMap">
+        <bind name="pattern" value="'%' + keyword + '%'"/>
+        select
+        <include refid="Base_Column_List"/>
+        from user
+        where username like #{pattern} and deleted = 0
+    </select>
+
+    <!-- ============================================================
+         resultMap association + collection 一对多
+         用户 -> 部门（多对一）、用户 -> 订单列表（一对多）
+         ============================================================ -->
+    <resultMap type="cn.song.mybatisplusdemo.entity.User" id="UserWithOrdersResultMap" extends="BaseResultMap">
+        <association property="department" javaType="cn.song.mybatisplusdemo.entity.Department">
+            <id property="id" column="dept_id"/>
+            <result property="name" column="dept_name"/>
+            <result property="code" column="dept_code"/>
+        </association>
+        <collection property="orders" ofType="cn.song.mybatisplusdemo.entity.Order">
+            <id property="id" column="order_id"/>
+            <result property="orderNo" column="order_no"/>
+            <result property="userId" column="order_user_id"/>
+            <result property="amount" column="order_amount"/>
+            <result property="status" column="order_status"/>
+            <result property="createTime" column="order_create_time"/>
+        </collection>
+    </resultMap>
+
+    <!-- XML resultMap 一对多联查：user LEFT JOIN department LEFT JOIN t_order -->
+    <select id="selectUserWithOrdersXml" resultMap="UserWithOrdersResultMap">
+        select
+        u.id, u.username, u.password, u.age, u.email, u.role_id, u.dept_id, u.status,
+        u.create_time, u.update_time, u.deleted, u.version,
+        d.id as dept_id, d.name as dept_name, d.code as dept_code,
+        o.id as order_id, o.order_no, o.user_id as order_user_id,
+        o.amount as order_amount, o.status as order_status, o.create_time as order_create_time
+        from user u
+        left join department d on d.id = u.dept_id
+        left join t_order o on o.user_id = u.id
+        <where>
+            u.deleted = 0
+            <if test="status != null">
+                and u.status = #{status}
+            </if>
+        </where>
+        order by u.id
+    </select>
+
+    <!-- XML 自定义分页查询：方法第一个参数为 IPage 时自动分页 -->
+    <select id="selectUserPageXml" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from user
+        <where>
+            deleted = 0
+            <if test="status != null">
+                and status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                and username like concat('%', #{keyword}, '%')
+            </if>
+        </where>
+        order by id desc
+    </select>
+
+    <!-- XML 多参数查询（@Param 命名） -->
+    <select id="selectByMultiParamXml" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from user
+        <where>
+            deleted = 0
+            <if test="username != null and username != ''">
+                and username = #{username}
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+            <if test="minAge != null">
+                and age &gt;= #{minAge}
+            </if>
+        </where>
+    </select>
+
+    <!-- XML Map 参数查询（Map 作为唯一参数，通过 #{params.xxx} 取值） -->
+    <select id="selectByMapParamXml" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from user
+        <where>
+            deleted = 0
+            <if test="params.username != null and params.username != ''">
+                and username = #{params.username}
+            </if>
+            <if test="params.status != null">
+                and status = #{params.status}
+            </if>
+            <if test="params.roleIds != null">
+                and role_id in
+                <foreach collection="params.roleIds" item="roleId" open="(" separator="," close=")">
+                    #{roleId}
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+</mapper>

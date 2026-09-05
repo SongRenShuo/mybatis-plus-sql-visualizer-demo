@@ -50,4 +50,13 @@ src/main/resources/
 每个子项目的 `service` 实现类中集中编写了插件可识别的各种 Wrapper / Criteria / JPQL 调用链，
 可直接在 IDEA 中打开项目并使用插件查看 SQL 预览效果。
 
+`mybatis-plus-demo` 另含「自研框架字符串 SQL」场景（2026-09-06 新增，对齐用户真实项目反馈）：
+`common/BeanCruder` / `common/BeanQuery`（模拟自研 DAO 层）+ `StringSqlDaoDemoServiceImpl`——
+
+| 形态 | 方法 | 插件入口 |
+|------|------|---------|
+| 方法内拼接 SQL 变量 + `beanCruder.selectList(Class, sql, 名值对...)` | `getScheduleList` | `selectList` 调用行 / `getScheduleList` 方法定义名行 gutter，点击或快捷键（`Ctrl+Alt+S`）预览拼接展开 SQL（`:CUR_USER` 命名参数进参数面板） |
+| 分页包装层（Class + sql + paramMap → PaginQuery → 委托） | `selectListPagination` | 方法定义名行 gutter / 方法体内快捷键 |
+| 聚合统计 + `beanCruder.selectOne` | `selectOneSummary` | 同形态一 |
+
 > 注意：三个子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作仓库说明占位。

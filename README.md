@@ -59,4 +59,52 @@ src/main/resources/
 | 分页包装层（Class + sql + paramMap → PaginQuery → 委托） | `selectListPagination` | 方法定义名行 gutter / 方法体内快捷键 |
 | 聚合统计 + `beanCruder.selectOne` | `selectOneSummary` | 同形态一 |
 
+## 场景覆盖清单（2026-09-07 插件能力对照补齐）
+
+以下为按插件覆盖矩阵逐项补齐的场景，新增代码集中在各模块 `WrapperFullCoverage*` / `WrapperFactoryCoverage*` / `MpjFullCoverage*` / `JpaFullCoverage*` 服务及其 Controller，均可在 IDEA 打开后直接用插件预览。
+
+### mybatis-plus-demo（MP 3.5.3.1）
+
+| 场景 | 位置 |
+|------|------|
+| likeLeft/notLike 族、notBetween、isNotNull、geSql/ltSql、func、apply 多占位、first/comment/last、or 嵌套、多列 groupBy/orderBy | `WrapperFullCoverageServiceImpl` |
+| Wrappers 8 工厂形态、ChainWrappers 终结点（list/one/count/exists/page）、Db kit 静态 CRUD、SimpleQuery（keyMap/map/list）、ActiveRecord（Model） | `WrapperFactoryCoverageServiceImpl` |
+| selectMapsPage/exists/deleteByMap/update(wrapper) 等 CRUD 补形态 | 同上 |
+| @KeySequence/@EnumValue/@OrderBy 实体注解 | `SysConfig` / `ConfigTypeEnum` |
+| `${ew.customSqlSegment}` 展开（含 join 场景）、foreach/where/having 动态 SQL | `OrderMapper.xml` + `OrderMapper` |
+| choose/set/子查询+foreach | `DepartmentMapper.xml` |
+| sql 片段 include 复用 + 批量 insert foreach | `RoleMapper.xml` |
+| Provider 族注解 SQL | `UserMapper` + `UserSqlProvider` |
+| 自研 maintainPage XML（`<pages><maintainPage>` + CDATA SQL + 列元数据） | `resources/pages/user-maintain.xml` |
+
+> 版本墙：`eqSql`/`selectIgnore` 需 MP ≥ 3.5.4，`setIncrBy/setDecrBy` 需 ≥ 3.5.6，本地未引入，暂缺。
+
+### mybatis-plus-join-demo（MPJ 1.5.8）
+
+| 场景 | 位置 |
+|------|------|
+| innerJoin/rightJoin/fullJoin、4 参别名、5 参 rightAlias、on-lambda 多条件 + apply、ext MFunction 扩展 ON | `MpjFullCoverageServiceImpl#joinKindsAndOverloads` / `#onLambdaApply` |
+| 子查询条件族 `(col, Class, wrapper)`：in/notIn/exists | `#subqueryConditions` |
+| IfExists 族：eqIfExists/gtIfExists/likeIfExists/betweenIfExists/notBetweenIfExists/inIfNotEmpty/notInIfNotEmpty | `#ifExistsFamily` |
+| selectAsClass/selectCount/selectFunc 字符串模板 {0}/selectFilter | `#aggregateExt` |
+| updateJoin：setUpdateEntity/set 副表列/setIncrBy/setDecrBy/setApply | `#updateJoinExt` |
+| deleteJoin：主表删除/delete 指定表 | `#deleteJoinExt` |
+| MPJQueryWrapper 字符串聚合 + IN 子查询 + 分页 | `#queryStringExt` |
+
+> 版本墙：`selectSum/Max/Min/Avg/Len` 需 MPJ ≥ 1.5.9，本地为 1.5.8，暂缺。
+
+### jpa-hibernate-demo（Spring Boot 2.6.3）
+
+| 场景 | 位置 |
+|------|------|
+| 派生关键字补充：Not/IsNotNull/NotIn/NotContaining/StartsWith/True/False | `UserRepository` / `LegacyItemRepository` |
+| 遗留 hbm.xml 实体（POJO + 映射 + `<query>`/`<sql-query>` 命名查询），经 `spring.jpa.mapping-resources` 注册 | `LegacyItem` + `resources/hbm/LegacyItem.hbm.xml` |
+| createNamedQuery（实体 @NamedQuery 与 hbm `<query>` 双来源） | `JpaFullCoverageServiceImpl#queryByNamedQuery` |
+| createNativeQuery 位置参数 ?1 | `#queryNativePositional` |
+| hbm 实体 HQL（createQuery/createNamedQuery） | `#queryHqlOnLegacyEntity` / `LegacyItemDaoImpl` |
+| HibernateTemplate.iterate（命名参数重载） | `#iterateLegacyItems` |
+| @Query 构造器表达式 SELECT NEW dto | `UserRepository#findLiteByStatus` + `UserLiteDTO` |
+
+> 插件盲区不造语料：UPDATE JPQL、CriteriaUpdate/Delete、裸 findAll 系 CRUD、Specification/QBE 等插件不支持形态未新增（`UserRepository` 既有的 UPDATE JPQL 为历史用例，保留作反向验证）。
+
 > 注意：三个子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作仓库说明占位。

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.song.mybatisplusdemo.mapper.RoleMapper">
+
+    <!-- sql 片段定义（配合 <include> 复用） -->
+    <sql id="base_columns">
+        id, name, code, description
+    </sql>
+    <sql id="keyword_condition">
+        <if test="keyword != null and keyword != ''">
+            AND (name LIKE CONCAT('%', #{keyword}, '%') OR code LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </sql>
+
+    <!-- include 复用 sql 片段 -->
+    <select id="selectByIncludeFragment" resultType="cn.song.mybatisplusdemo.entity.Role">
+        SELECT
+        <include refid="base_columns"/>
+        FROM role
+        <where>
+            <include refid="keyword_condition"/>
+        </where>
+        ORDER BY id
+    </select>
+
+    <!-- foreach 批量插入 -->
+    <insert id="insertBatch">
+        INSERT INTO role(name, code, description) VALUES
+        <foreach collection="roles" item="role" separator=",">
+            (#{role.name}, #{role.code}, #{role.description})
+        </foreach>
+    </insert>
+</mapper>

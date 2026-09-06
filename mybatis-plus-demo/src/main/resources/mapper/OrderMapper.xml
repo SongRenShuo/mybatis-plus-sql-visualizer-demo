@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.song.mybatisplusdemo.mapper.OrderMapper">
+
+    <!-- ${ew.customSqlSegment}：Wrapper 条件段展开（插件 XmlEwExpander 经 namespace 反查接口 @Param("ew") 参数） -->
+    <select id="selectByCustomSqlSegment" resultType="cn.song.mybatisplusdemo.entity.Order">
+        SELECT * FROM t_order
+        ${ew.customSqlSegment}
+    </select>
+
+    <!-- ${ew.customSqlSegment} + join：ew 只拼 where 条件段 -->
+    <select id="selectOrderWithUserByEw" resultType="java.util.HashMap">
+        SELECT o.id, o.order_no, o.amount, u.username
+        FROM t_order o
+        LEFT JOIN user u ON o.user_id = u.id
+        ${ew.customSqlSegment}
+    </select>
+
+    <!-- where + if 多条件 + foreach 状态集合 -->
+    <select id="selectOrdersByCondition" resultType="cn.song.mybatisplusdemo.entity.Order">
+        SELECT * FROM t_order
+        <where>
+            <if test="orderNo != null and orderNo != ''">
+                AND order_no LIKE CONCAT('%', #{orderNo}, '%')
+            </if>
+            <if test="minAmount != null">
+                AND amount &gt;= #{minAmount}
+            </if>
+            <if test="statusList != null and statusList.size() > 0">
+                AND status IN
+                <foreach collection="statusList" item="st" open="(" separator="," close=")">
+                    #{st}
+                </foreach>
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- group by + having 聚合统计 -->
+    <select id="statOrderAmountByUser" resultType="java.util.HashMap">
+        SELECT user_id, COUNT(*) AS order_count, SUM(amount) AS total_amount
+        FROM t_order
+        <where>
+            <if test="minAmount != null">
+                amount &gt;= #{minAmount}
+            </if>
+        </where>
+        GROUP BY user_id
+        HAVING COUNT(*) &gt; 1
+        ORDER BY total_amount DESC
+    </select>
+</mapper>

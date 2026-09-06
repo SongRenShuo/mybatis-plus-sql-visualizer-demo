@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.song.mybatisplusdemo.mapper.DepartmentMapper">
+
+    <!-- choose/when/otherwise：命中第一个 test 为真的分支，都不命中走 otherwise -->
+    <select id="selectByChoose" resultType="cn.song.mybatisplusdemo.entity.Department">
+        SELECT * FROM department
+        <where>
+            <choose>
+                <when test="code != null and code != ''">
+                    AND code = #{code}
+                </when>
+                <when test="name != null and name != ''">
+                    AND name LIKE CONCAT('%', #{name}, '%')
+                </when>
+                <otherwise>
+                    AND parent_id = #{parentId}
+                </otherwise>
+            </choose>
+        </where>
+        ORDER BY sort
+    </select>
+
+    <!-- set + if 动态更新 -->
+    <update id="updateByDynamicSet">
+        UPDATE department
+        <set>
+            <if test="name != null and name != ''">
+                name = #{name},
+            </if>
+            <if test="sort != null">
+                sort = #{sort},
+            </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 子查询 + 嵌套 foreach -->
+    <select id="statDeptUserCount" resultType="java.util.HashMap">
+        SELECT d.id, d.name,
+               (SELECT COUNT(*) FROM user u WHERE u.dept_id = d.id) AS user_count
+        FROM department d
+        WHERE d.id IN
+        <foreach collection="deptIds" item="deptId" open="(" separator="," close=")">
+            #{deptId}
+        </foreach>
+    </select>
+</mapper>

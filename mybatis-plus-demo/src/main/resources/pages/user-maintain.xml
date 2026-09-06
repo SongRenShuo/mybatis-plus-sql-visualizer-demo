@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 自研框架 maintainPage XML：插件 PagesXmlGutterLineMarkerProvider + PagesXmlPreviewService 识别场景 -->
+<pages>
+    <maintainPage id="userMaintain" title="用户维护" autoQuery="true"
+                  entityClass="cn.song.mybatisplusdemo.entity.User">
+        <datasource><![CDATA[
+SELECT u.id, u.username, u.age, u.email, d.name AS dept_name, r.name AS role_name
+FROM user u
+LEFT JOIN department d ON u.dept_id = d.id
+LEFT JOIN role r ON u.role_id = r.id
+WHERE u.deleted = 0
+/* 用户名 */
+AND (u.username LIKE '%:username%' OR ':username' = '')
+/* 状态 */
+AND (u.status = :status OR :status IS NULL)
+ORDER BY u.id DESC
+]]></datasource>
+        <columns>
+            <column id="id" title="用户ID" dataType="int" visible="true" sortable="true"/>
+            <column id="username" title="用户名" dataType="string" visible="true" sortable="true"/>
+            <column id="age" title="年龄" dataType="int" visible="true" sortable="true"/>
+            <column id="email" title="邮箱" dataType="string" visible="true" sortable="false"/>
+            <column id="dept_name" title="部门" dataType="string" visible="true" sortable="false"/>
+            <column id="role_name" title="角色" dataType="string" visible="true" sortable="false"/>
+        </columns>
+    </maintainPage>
+
+    <maintainPage id="orderMaintain" title="订单维护" autoQuery="false"
+                  entityClass="cn.song.mybatisplusdemo.entity.Order">
+        <datasource><![CDATA[
+SELECT o.id, o.order_no, o.amount, o.status, o.create_time, u.username
+FROM t_order o
+INNER JOIN user u ON o.user_id = u.id
+WHERE o.amount >= :minAmount
+ORDER BY o.create_time DESC
+]]></datasource>
+        <columns>
+            <column id="id" title="订单ID" dataType="int" visible="true" sortable="true"/>
+            <column id="order_no" title="订单号" dataType="string" visible="true" sortable="true"/>
+            <column id="amount" title="金额" dataType="decimal" visible="true" sortable="true"/>
+            <column id="status" title="状态" dataType="int" visible="true" sortable="false"/>
+            <column id="create_time" title="下单时间" dataType="datetime" visible="true" sortable="true"/>
+            <column id="username" title="下单用户" dataType="string" visible="true" sortable="false"/>
+        </columns>
+    </maintainPage>
+</pages>

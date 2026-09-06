@@ -3,10 +3,14 @@ package cn.song.mybatisplusdemo.mapper;
 import cn.song.mybatisplusdemo.entity.User;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.DeleteProvider;
 import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.InsertProvider;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.SelectProvider;
 import org.apache.ibatis.annotations.Update;
+import org.apache.ibatis.annotations.UpdateProvider;
 
 import java.util.List;
 
@@ -70,6 +74,36 @@ public interface UserMapper extends BaseMapper<User> {
      */
     @Insert("INSERT INTO user(username, password, age, status) VALUES (#{username}, #{password}, #{age}, #{status})")
     int insertByAnnotation(User user);
+
+    /**
+     * 注解 SQL：@SelectProvider + <script>（Provider 返回动态 SQL 文本）
+     */
+    @SelectProvider(type = cn.song.mybatisplusdemo.common.UserSqlProvider.class, method = "selectById")
+    User selectByProviderId(@Param("id") Integer id);
+
+    /**
+     * 注解 SQL：@SelectProvider 条件拼接
+     */
+    @SelectProvider(type = cn.song.mybatisplusdemo.common.UserSqlProvider.class, method = "selectByCondition")
+    List<User> selectByProviderCondition(@Param("username") String username, @Param("status") Integer status);
+
+    /**
+     * 注解 SQL：@InsertProvider
+     */
+    @InsertProvider(type = cn.song.mybatisplusdemo.common.UserSqlProvider.class, method = "insert")
+    int insertByProvider(User user);
+
+    /**
+     * 注解 SQL：@UpdateProvider
+     */
+    @UpdateProvider(type = cn.song.mybatisplusdemo.common.UserSqlProvider.class, method = "updateStatus")
+    int updateStatusByProvider(@Param("id") Integer id, @Param("status") Integer status);
+
+    /**
+     * 注解 SQL：@DeleteProvider
+     */
+    @DeleteProvider(type = cn.song.mybatisplusdemo.common.UserSqlProvider.class, method = "deleteByRoleIds")
+    int deleteByProviderRoleIds(@Param("roleIds") List<Integer> roleIds);
 
     /**
      * XML 动态 SQL：where + if 组合查询（对应 UserMapper.xml selectUserListByXml）

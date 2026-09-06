@@ -214,4 +214,23 @@
         </where>
     </select>
 
+
+<!--    &lt;!&ndash; 查询资产状态分布 &ndash;&gt;-->
+<!--    <select id="selectStatusDistribution" resultType="com.gfjh.cloud.module.ams.controller.admin.home.vo.StatusDistributionItem">-->
+<!--        SELECT-->
+<!--            use_status as status,-->
+<!--            CASE use_status-->
+<!--                WHEN 1 THEN '在用'-->
+<!--                WHEN 2 THEN '闲置'-->
+<!--                WHEN 3 THEN '维修中'-->
+<!--                WHEN 4 THEN '报废'-->
+<!--                ELSE '未知'-->
+<!--                END as statusName,-->
+<!--            COUNT(*) as count,-->
+<!--    ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM ams_asset WHERE deleted = 0), 2) as percentage-->
+<!--        FROM ams_asset-->
+<!--        WHERE deleted = 0-->
+<!--        GROUP BY use_status-->
+<!--        ORDER BY use_status-->
+<!--    </select>-->
 </mapper>

@@ -104,6 +104,7 @@ public class DeviceInfoServiceImpl implements DeviceInfoService {
     public List<DeviceInfoEntity> joinListEntity() {
         MPJLambdaWrapper<DeviceInfoEntity> wrapper = JoinWrappers.lambda(DeviceInfoEntity.class)
                 .selectAll(DeviceInfoEntity.class)
+                .selectAs(StationInfoEntity::getStationName,DeviceInfoEntity::getDeviceName)
                 .leftJoin(StationInfoEntity.class, StationInfoEntity::getStationId, DeviceInfoEntity::getStationId)
                 .eq(DeviceInfoEntity::getShareSchemeId, 1)
                 .orderByAsc(DeviceInfoEntity::getId);

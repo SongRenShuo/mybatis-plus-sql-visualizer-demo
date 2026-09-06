@@ -1,6 +1,7 @@
 package cn.song.jpademo.service.impl;
 
 import cn.song.jpademo.entity.DepartmentEntity;
+import cn.song.jpademo.entity.OrderEntity;
 import cn.song.jpademo.entity.UserEntity;
 import cn.song.jpademo.repository.UserRepository;
 import cn.song.jpademo.service.JpaQueryService;
@@ -9,20 +10,17 @@ import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Tuple;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Join;
-import javax.persistence.criteria.JoinType;
-import javax.persistence.criteria.Order;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
+import javax.persistence.criteria.*;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,11 +40,9 @@ public class JpaQueryServiceImpl implements JpaQueryService {
     private EntityManager entityManager;
 
     private final UserRepository userRepository;
-    private final SessionFactory sessionFactory;
 
-    public JpaQueryServiceImpl(UserRepository userRepository, SessionFactory sessionFactory) {
+    public JpaQueryServiceImpl(UserRepository userRepository) {
         this.userRepository = userRepository;
-        this.sessionFactory = sessionFactory;
     }
 
     // ------------------------------------------------------------------
@@ -72,6 +68,7 @@ public class JpaQueryServiceImpl implements JpaQueryService {
      */
     @Override
     public List<UserEntity> jpqlQuery(String username, Integer minAge) {
+
         javax.persistence.Query named = entityManager.createQuery(
                 "SELECT u FROM UserEntity u WHERE u.username = :username")
                 .setParameter("username", username);
@@ -88,7 +85,9 @@ public class JpaQueryServiceImpl implements JpaQueryService {
     @Override
     public List<UserEntity> jpqlJoinFetch(String deptName) {
         javax.persistence.Query query = entityManager.createQuery(
-                "SELECT u FROM UserEntity u JOIN FETCH u.department d WHERE d.name = :deptName")
+                "SELECT u FROM UserEntity u " +
+                        "JOIN FETCH u.department d " +
+                        "WHERE d.name = :deptName")
                 .setParameter("deptName", deptName);
         return query.getResultList();
     }
@@ -200,7 +199,7 @@ public class JpaQueryServiceImpl implements JpaQueryService {
     @Override
     @Transactional(readOnly = true)
     public List<UserEntity> hibernateHql(String username) {
-        Session session = sessionFactory.getCurrentSession();
+        Session session = entityManager.unwrap(Session.class);
         Query<UserEntity> query = session.createQuery(
                 "SELECT u FROM UserEntity u WHERE u.username = :username", UserEntity.class);
         query.setParameter("username", username);
@@ -213,7 +212,7 @@ public class JpaQueryServiceImpl implements JpaQueryService {
     @Override
     @Transactional(readOnly = true)
     public List<UserEntity> hibernateHqlJoinFetch(String deptName, Integer status) {
-        Session session = sessionFactory.getCurrentSession();
+        Session session = entityManager.unwrap(Session.class);
         Query<UserEntity> query = session.createQuery(
                 "SELECT u FROM UserEntity u JOIN FETCH u.department d WHERE d.name = ?1 AND u.status = ?2",
                 UserEntity.class);
@@ -228,7 +227,7 @@ public class JpaQueryServiceImpl implements JpaQueryService {
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> hibernateHqlAggregate(Integer status) {
-        Session session = sessionFactory.getCurrentSession();
+        Session session = entityManager.unwrap(Session.class);
         Query<Object[]> query = session.createQuery(
                 "SELECT COUNT(u), MAX(u.age), AVG(u.age) FROM UserEntity u WHERE u.status = :status",
                 Object[].class);
@@ -247,7 +246,7 @@ public class JpaQueryServiceImpl implements JpaQueryService {
     @Override
     @Transactional
     public int hibernateHqlUpdate(Integer oldStatus, Integer newStatus) {
-        Session session = sessionFactory.getCurrentSession();
+        Session session = entityManager.unwrap(Session.class);
         Query<?> query = session.createQuery(
                 "UPDATE UserEntity u SET u.status = :newStatus WHERE u.status = :oldStatus");
         query.setParameter("newStatus", newStatus);
@@ -267,6 +266,24 @@ public class JpaQueryServiceImpl implements JpaQueryService {
         javax.persistence.Query query = entityManager.createQuery(
                 "SELECT NEW cn.song.jpademo.dto.OrderStatDTO(o.customerId, COUNT(o), SUM(o.totalAmount)) " +
                         "FROM OrderEntity o GROUP BY o.customerId HAVING COUNT(o) > 1");
+        return query.getResultList();
+    }
+
+
+    public List<Object[]> test() {
+        String hql = "select"
+                + " count(booking.id),"
+                + " count(case when booking.arrivalTime is not null"
+                + "   and booking.initialETA is not null"
+                + "   and booking.arrivalTime < booking.initialETA then 0 end),"
+                + " count(case when booking.status = 'F' then 0 end)"
+                + " from WmsDockBooking booking"
+                + " where booking.warehouseId = :warehouseId"
+                + " and booking.type = 'R'"
+                + " and booking.updateInfo.createdTime >= :startTime"
+                + " and booking.updateInfo.createdTime < :endTime";
+
+        javax.persistence.Query query = entityManager.createQuery(hql);
         return query.getResultList();
     }
 
@@ -307,8 +324,8 @@ public class JpaQueryServiceImpl implements JpaQueryService {
      */
     @Override
     public List<UserEntity> specificationQuery(String username, Integer minAge, Integer status, Boolean emailNull) {
-        org.springframework.data.jpa.domain.Specification<UserEntity> spec = (root, query, cb) -> {
-            java.util.List<javax.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+        Specification<UserEntity> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
             if (username != null && !username.isEmpty()) {
                 predicates.add(cb.like(root.get("username"), "%" + username + "%"));
             }
@@ -321,7 +338,7 @@ public class JpaQueryServiceImpl implements JpaQueryService {
             if (Boolean.TRUE.equals(emailNull)) {
                 predicates.add(cb.isNull(root.get("email")));
             }
-            return cb.and(predicates.toArray(new javax.persistence.criteria.Predicate[0]));
+            return cb.and(predicates.toArray(new Predicate[0]));
         };
         return userRepository.findAll(spec);
     }
@@ -336,8 +353,8 @@ public class JpaQueryServiceImpl implements JpaQueryService {
         CriteriaQuery<UserEntity> cq = cb.createQuery(UserEntity.class);
         Root<UserEntity> root = cq.from(UserEntity.class);
 
-        javax.persistence.criteria.Subquery<Long> sub = cq.subquery(Long.class);
-        javax.persistence.criteria.Root<cn.song.jpademo.entity.OrderEntity> subRoot = sub.from(cn.song.jpademo.entity.OrderEntity.class);
+        Subquery<Long> sub = cq.subquery(Long.class);
+        Root<OrderEntity> subRoot = sub.from(OrderEntity.class);
         sub.select(subRoot.get("customerId"));
         sub.where(cb.greaterThan(subRoot.get("totalAmount"), minAmount));
 
@@ -354,7 +371,7 @@ public class JpaQueryServiceImpl implements JpaQueryService {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<UserEntity> cq = cb.createQuery(UserEntity.class);
         Root<UserEntity> root = cq.from(UserEntity.class);
-        javax.persistence.criteria.Join<Object, Object> deptJoin = root.join("department", javax.persistence.criteria.JoinType.LEFT);
+        Join<Object, Object> deptJoin = root.join("department", JoinType.LEFT);
         // 显式 ON 条件：d.name = deptName
         deptJoin.on(cb.equal(deptJoin.get("name"), deptName));
 
@@ -374,7 +391,7 @@ public class JpaQueryServiceImpl implements JpaQueryService {
         CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
         Root<UserEntity> root = cq.from(UserEntity.class);
 
-        javax.persistence.criteria.Expression<String> ageLevel = cb.<String>selectCase()
+        Expression<String> ageLevel = cb.<String>selectCase()
                 .when(cb.lessThan(root.get("age"), 18), "未成年")
                 .when(cb.lessThan(root.get("age"), 30), "青年")
                 .otherwise("中年以上");
@@ -389,11 +406,11 @@ public class JpaQueryServiceImpl implements JpaQueryService {
      * Criteria Tuple 多列查询（root 字段 + join 字段）
      */
     @Override
-    public List<javax.persistence.Tuple> criteriaTuple(Integer status) {
+    public List<Tuple> criteriaTuple(Integer status) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<javax.persistence.Tuple> cq = cb.createTupleQuery();
+        CriteriaQuery<Tuple> cq = cb.createTupleQuery();
         Root<UserEntity> root = cq.from(UserEntity.class);
-        javax.persistence.criteria.Join<Object, Object> deptJoin = root.join("department", javax.persistence.criteria.JoinType.LEFT);
+        Join<Object, Object> deptJoin = root.join("department", JoinType.LEFT);
 
         cq.multiselect(
                 root.get("id"),
@@ -412,8 +429,8 @@ public class JpaQueryServiceImpl implements JpaQueryService {
     @Override
     @Transactional(readOnly = true)
     public List<UserEntity> hqlMore(List<Integer> statuses, Integer minAge, Integer maxAge, String keyword) {
-        Session session = sessionFactory.getCurrentSession();
-        org.hibernate.query.Query<UserEntity> query = session.createQuery(
+        Session session = entityManager.unwrap(Session.class);
+        Query<UserEntity> query = session.createQuery(
                 "SELECT DISTINCT u FROM UserEntity u WHERE u.status IN :statuses " +
                         "AND u.age BETWEEN :minAge AND :maxAge " +
                         "AND u.username LIKE CONCAT('%', :keyword, '%') " +
@@ -431,9 +448,9 @@ public class JpaQueryServiceImpl implements JpaQueryService {
      */
     @Override
     @Transactional(readOnly = true)
-    public List<UserEntity> hqlExistsSubquery(java.math.BigDecimal minAmount) {
-        Session session = sessionFactory.getCurrentSession();
-        org.hibernate.query.Query<UserEntity> query = session.createQuery(
+    public List<UserEntity> hqlExistsSubquery(BigDecimal minAmount) {
+        Session session = entityManager.unwrap(Session.class);
+        Query<UserEntity> query = session.createQuery(
                 "SELECT u FROM UserEntity u WHERE EXISTS " +
                         "(SELECT o FROM OrderEntity o WHERE o.customerId = u.id AND o.totalAmount >= :minAmount)",
                 UserEntity.class);
@@ -447,8 +464,8 @@ public class JpaQueryServiceImpl implements JpaQueryService {
     @Override
     @Transactional(readOnly = true)
     public List<UserEntity> hqlJoinFetchDistinct(String deptName) {
-        Session session = sessionFactory.getCurrentSession();
-        org.hibernate.query.Query<UserEntity> query = session.createQuery(
+        Session session = entityManager.unwrap(Session.class);
+        Query<UserEntity> query = session.createQuery(
                 "SELECT DISTINCT u FROM UserEntity u LEFT JOIN FETCH u.department d WHERE d.name = :deptName",
                 UserEntity.class);
         query.setParameter("deptName", deptName);
@@ -459,10 +476,10 @@ public class JpaQueryServiceImpl implements JpaQueryService {
      * 派生查询分页 + Sort（Pageable 排序）
      */
     @Override
-    public org.springframework.data.domain.Page<UserEntity> derivedPaged(Integer status, int page, int size, String sortField) {
-        org.springframework.data.domain.Sort sort = org.springframework.data.domain.Sort.by(
-                org.springframework.data.domain.Sort.Direction.DESC, sortField);
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, sort);
+    public Page<UserEntity> derivedPaged(Integer status, int page, int size, String sortField) {
+        Sort sort = Sort.by(
+                Sort.Direction.DESC, sortField);
+        Pageable pageable = PageRequest.of(page, size, sort);
         return userRepository.findByStatus(status, pageable);
     }
 }

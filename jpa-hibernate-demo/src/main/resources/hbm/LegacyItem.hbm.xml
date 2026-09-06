@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+        "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+        "http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
+<!-- 遗留 hbm.xml 映射：插件 HbmXmlEntityResolver 识别场景（类→表、属性→列、命名查询） -->
+<hibernate-mapping>
+    <class name="cn.song.jpademo.entity.LegacyItem" table="legacy_item">
+        <id name="id" type="java.lang.Long" column="id">
+            <generator class="native"/>
+        </id>
+        <property name="itemCode" type="string" column="item_code" length="64"/>
+        <property name="itemName" type="string" column="item_name" length="128"/>
+        <property name="quantity" type="java.lang.Integer" column="quantity"/>
+        <property name="deprecated" type="java.lang.Boolean" column="deprecated"/>
+        <property name="inTime" type="java.time.LocalDateTime" column="in_time"/>
+    </class>
+
+    <!-- hbm 命名查询（HQL）：配合 EntityManager.createNamedQuery 使用 -->
+    <query name="LegacyItem.findLowStockHql"><![CDATA[
+        FROM LegacyItem li
+        WHERE li.quantity <= :threshold AND li.deprecated = false
+        ORDER BY li.quantity ASC
+    ]]></query>
+
+    <!-- hbm 命名查询（原生 SQL） -->
+    <sql-query name="LegacyItem.countByDeprecatedNative">
+        <return-scalar column="cnt" type="long"/>
+        SELECT COUNT(*) AS cnt FROM legacy_item WHERE deprecated = :deprecated
+    </sql-query>
+</hibernate-mapping>

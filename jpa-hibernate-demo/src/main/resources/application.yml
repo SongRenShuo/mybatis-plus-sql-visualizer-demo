@@ -10,6 +10,8 @@ spring:
     username: root
     password: root
   jpa:
+    # 遗留 hbm.xml 映射注册（插件 HbmXmlEntityResolver 场景）
+    mapping-resources: hbm/LegacyItem.hbm.xml
     # 仅演示环境使用 update；生产请使用 validate / none
     hibernate:
       ddl-auto: update

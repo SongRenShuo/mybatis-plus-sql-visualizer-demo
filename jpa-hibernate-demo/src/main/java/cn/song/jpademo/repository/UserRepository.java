@@ -107,6 +107,36 @@ public interface UserRepository extends JpaRepository<UserEntity, Long>, JpaSpec
      */
     Page<UserEntity> findByDepartmentIdAndStatusOrderByCreateTimeDesc(Long departmentId, Integer status, Pageable pageable);
 
+    /**
+     * findByStatusNot：NOT 等值（补充关键字）
+     */
+    List<UserEntity> findByStatusNot(Integer status);
+
+    /**
+     * findByEmailIsNotNull：IS NOT NULL（补充关键字）
+     */
+    List<UserEntity> findByEmailIsNotNull();
+
+    /**
+     * findByAgeNotIn：NOT IN（补充关键字）
+     */
+    List<UserEntity> findByAgeNotIn(Collection<Integer> ages);
+
+    /**
+     * findByLastNameNotContaining：NOT LIKE（补充关键字）
+     */
+    List<UserEntity> findByLastNameNotContaining(String fragment);
+
+    /**
+     * findByUsernameStartsWith：StartingWith 别名（补充关键字）
+     */
+    List<UserEntity> findByUsernameStartsWith(String prefix);
+
+    /**
+     * countByLastNameAndAgeLessThan：AND 组合计数（补充形态）
+     */
+    long countByLastNameAndAgeLessThan(String lastName, Integer age);
+
     // ------------------------------------------------------------------
     // @Query JPQL（插件 JpqlConverter 对齐用例）
     // ------------------------------------------------------------------
@@ -279,4 +309,11 @@ public interface UserRepository extends JpaRepository<UserEntity, Long>, JpaSpec
      */
     @Query("SELECT DISTINCT u.status FROM UserEntity u WHERE u.age > :minAge")
     List<Integer> findDistinctStatus(@Param("minAge") Integer minAge);
+
+    /**
+     * @Query 构造器表达式（SELECT NEW dto）：投影到自定义构造器
+     */
+    @Query("SELECT new cn.song.jpademo.dto.UserLiteDTO(u.id, u.username) "
+            + "FROM UserEntity u WHERE u.status = :status ORDER BY u.id")
+    List<cn.song.jpademo.dto.UserLiteDTO> findLiteByStatus(@Param("status") Integer status);
 }

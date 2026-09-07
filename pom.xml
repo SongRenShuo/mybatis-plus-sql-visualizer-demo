@@ -21,5 +21,6 @@
         <module>mybatis-plus-demo</module>
         <module>mybatis-plus-join-demo</module>
         <module>jpa-hibernate-demo</module>
+        <module>mybatis-plus-kotlin-demo</module>
     </modules>
 </project>

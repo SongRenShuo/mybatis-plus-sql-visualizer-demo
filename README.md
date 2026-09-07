@@ -10,6 +10,7 @@
 | [mybatis-plus-demo](mybatis-plus-demo) | MyBatis-Plus | `QueryWrapper` / `LambdaQueryWrapper` / `UpdateWrapper` / `LambdaUpdateWrapper` / `LambdaDeleteWrapper`、XML 动态 SQL、注解 SQL、分页、批量操作 |
 | [mybatis-plus-join-demo](mybatis-plus-join-demo) | MyBatis-Plus-Join (MPJ) | `MPJLambdaWrapper` 多表联查、`selectCollection`、`from` 子查询、`around`、`fill`、`updateJoin` / `deleteJoin` |
 | [jpa-hibernate-demo](jpa-hibernate-demo) | JPA + Hibernate | Spring Data JPA 派生查询、`@Query` JPQL、`CriteriaQuery`、Hibernate HQL |
+| [mybatis-plus-kotlin-demo](mybatis-plus-kotlin-demo) | MyBatis-Plus Kotlin | `ktQuery()` / `ktUpdate()` 扩展链、Kotlin 直接构造 Wrapper（插件 KtWrapperDetector 语料） |
 
 ## 环境要求
 
@@ -106,5 +107,24 @@ src/main/resources/
 | @Query 构造器表达式 SELECT NEW dto | `UserRepository#findLiteByStatus` + `UserLiteDTO` |
 
 > 插件盲区不造语料：UPDATE JPQL、CriteriaUpdate/Delete、裸 findAll 系 CRUD、Specification/QBE 等插件不支持形态未新增（`UserRepository` 既有的 UPDATE JPQL 为历史用例，保留作反向验证）。
+
+### mybatis-plus-kotlin-demo（Kotlin 1.9.25 + MP 3.5.3.1，2026-09-07 新增）
+
+插件 KtWrapperDetector（ktQuery/ktUpdate 扩展链 + Kotlin 直接构造，文本正则 MVP）的专用语料模块，场景集中在 `KotlinWrapperScenarios`：
+
+| 场景 | 方法 |
+|------|------|
+| ktQuery：eq/ne/gt/le、like 三族、notLike、between、isNull/isNotNull、notIn、select 多列、groupBy/having、apply、last、布尔开关重载、and/or 嵌套 | `byUsername` ~ `byOrNesting` |
+| ktUpdate：set（含开关）/setSql/notIn/update、链式 remove | `renameById` / `batchDisable` / `removeDisabled` |
+| 直接构造：Lambda 系查询/更新、字符串列 Query/Update、Kt 系包装（类名含 QueryWrapper 子串的识别边界用例） | `byLambdaQueryDirect` ~ `updateByKtDirect` |
+| 第二实体订单链（k_order） | `paidOrdersAbove` / `cancelStaleOrders` |
+
+**Kotlin 语料书写约束**（源自检测器逐行正则实现，新增用例必须遵守）：
+1. 链起点与链上调用必须**单行**书写，跨行续链只认起点行；
+2. and/or 嵌套用带括号 lambda `.and({ w -> ... })`，尾随 lambda 无括号正则不识别；
+3. 注释不要出现「包装类名 + `(` 或 `<`」字样（检测器只跳过 `//` 行，块注释体会误触发）；
+4. 已知 MVP 边界：Kotlin 关键字 `in` 反引号调用（`byBacktickIn`）、尾随 lambda、跨行链不被识别，语料中保留作 PSI 深化后回归。
+
+> 版本墙：MP 3.5.3.1 无 LambdaDeleteWrapper（3.5.4+），条件删除用 remove(updateWrapper) 惯用法；MPJ Kotlin 扩展插件侧为 🟡 未立项，本模块不含 MPJ 场景。
 
 > 注意：三个子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作仓库说明占位。

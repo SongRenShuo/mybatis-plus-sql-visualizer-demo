@@ -54,14 +54,27 @@ public class WrapperFullCoverageServiceImpl implements WrapperFullCoverageServic
     }
 
     /**
-     * geSql / ltSql（SQL 片段直拼补全）
+     * geSql / ltSql / eqSql（SQL 片段直拼；eqSql 需 MP ≥ 3.5.6，升级 3.5.7 后解锁）
      */
     @Override
     public List<User> listBySqlFragmentExt(String minAmount) {
         QueryWrapper<User> wrapper = new QueryWrapper<>();
+        wrapper.eqSql("status", "1");
         wrapper.geSql("id", "select user_id from t_order where amount >= " + minAmount);
         wrapper.ltSql("id", "select max(id) from user");
         return userMapper.selectList(wrapper);
+    }
+
+    /**
+     * setIncrBy / setDecrBy 数值自增自减更新（需 MP ≥ 3.5.6，升级 3.5.7 后解锁）
+     */
+    @Override
+    public int updateIncrDecr(Integer deptId) {
+        LambdaUpdateWrapper<User> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.setIncrBy(User::getAge, 1);
+        wrapper.setDecrBy(true, User::getDeptId, 1);
+        wrapper.eq(User::getDeptId, deptId);
+        return userMapper.update(null, wrapper);
     }
 
     /**

@@ -23,9 +23,14 @@ public interface WrapperFullCoverageService {
     List<User> listByRangeConditions(Integer low, Integer high);
 
     /**
-     * geSql / ltSql（SQL 片段直拼补全）
+     * geSql / ltSql / eqSql（SQL 片段直拼补全；eqSql 需 MP ≥ 3.5.6）
      */
     List<User> listBySqlFragmentExt(String minAmount);
+
+    /**
+     * setIncrBy / setDecrBy 数值自增自减更新（需 MP ≥ 3.5.6）
+     */
+    int updateIncrDecr(Integer deptId);
 
     /**
      * or 细粒度嵌套：or(Consumer) 与 or() 连缀混合

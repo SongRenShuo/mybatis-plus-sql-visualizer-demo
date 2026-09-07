@@ -39,11 +39,19 @@ public class WrapperFullCoverageController {
     }
 
     /**
-     * geSql/ltSql
+     * geSql/ltSql/eqSql
      */
     @GetMapping("/sqlFragmentExt")
     public List<User> sqlFragmentExt(String minAmount) {
         return wrapperFullCoverageService.listBySqlFragmentExt(minAmount);
+    }
+
+    /**
+     * setIncrBy/setDecrBy（MP 3.5.6+）
+     */
+    @GetMapping("/incrDecr")
+    public int incrDecr(Integer deptId) {
+        return wrapperFullCoverageService.updateIncrDecr(deptId);
     }
 
     /**

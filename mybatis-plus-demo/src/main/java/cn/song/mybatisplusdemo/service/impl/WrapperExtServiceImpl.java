@@ -35,7 +35,7 @@ public class WrapperExtServiceImpl implements WrapperExtService {
 
     /**
      * gtSql / geSql / ltSql / leSql / inSql：SQL 片段直拼（3 参 boolean 形式，注意 SQL 注入风险）
-     * 注：MP 3.5.2 无 eqSql/neSql，等值与不等值用 apply 直拼演示
+     * 注：eqSql 需 MP ≥ 3.5.6（已升级 3.5.7，见 WrapperFullCoverageServiceImpl#listBySqlFragmentExt），本方法保留 apply 等值直拼对照
      */
     @Override
     public List<User> listBySqlFragment(Integer minAge) {

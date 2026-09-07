@@ -37,9 +37,9 @@ class KotlinWrapperScenarios(
     fun byUsername(username: String): List<KUser> =
         userService.ktQuery().eq(KUser::username, username).like(KUser::email, "@qq.com").list()
 
-    /** 比较条件族 + 排序 */
+    /** 比较条件族 + 排序（多列：MP 3.5.6+ orderBy 族 Kotlin 变长重载与单列形态二义，须显式多列） */
     fun byAgeRange(low: Int, high: Int): List<KUser> =
-        userService.ktQuery().ne(KUser::status, 0).gt(KUser::age, low).le(KUser::age, high).orderByDesc(KUser::id).list()
+        userService.ktQuery().ne(KUser::status, 0).gt(KUser::age, low).le(KUser::age, high).orderByDesc(KUser::id, KUser::age).list()
 
     /** 布尔开关重载 + 非空 + last 直拼 */
     fun byAgeConditional(age: Int?): List<KUser> =
@@ -59,9 +59,9 @@ class KotlinWrapperScenarios(
     fun groupByDept(): List<KUser> =
         userService.ktQuery().select(KUser::deptId).groupBy(KUser::deptId).having("count(*) > {0}", 1).list()
 
-    /** apply 直拼 + 升序 */
+    /** apply 直拼 + 升序（多列） */
     fun byApply(minAge: Int): List<KUser> =
-        userService.ktQuery().apply("age > {0}", minAge).orderByAsc(KUser::deptId).list()
+        userService.ktQuery().apply("age > {0}", minAge).orderByAsc(KUser::deptId, KUser::id).list()
 
     /** and/or 带括号 lambda 嵌套（尾随 lambda 无括号不匹配正则，务必保留括号写法） */
     fun byOrNesting(): List<KUser> =
@@ -89,7 +89,7 @@ class KotlinWrapperScenarios(
 
     /** Lambda 查询包装直接构造（构造行 + 条件同行） */
     fun byLambdaQueryDirect(status: Int): List<KUser> {
-        val queryWrapper = LambdaQueryWrapper<KUser>().eq(KUser::status, status).isNotNull(KUser::email).orderByDesc(KUser::id)
+        val queryWrapper = LambdaQueryWrapper<KUser>().eq(KUser::status, status).isNotNull(KUser::email).orderByDesc(KUser::id, KUser::age)
         return userMapper.selectList(queryWrapper)
     }
 
@@ -125,7 +125,7 @@ class KotlinWrapperScenarios(
 
     /** 订单链：另一实体的 ktQuery（金额下限 + 已支付状态） */
     fun paidOrdersAbove(amountMin: Double): List<KOrder> =
-        orderService.ktQuery().eq(KOrder::status, 1).ge(KOrder::amount, amountMin).orderByDesc(KOrder::id).list()
+        orderService.ktQuery().eq(KOrder::status, 1).ge(KOrder::amount, amountMin).orderByDesc(KOrder::id, KOrder::amount).list()
 
     /** 订单链：条件更新（取消传入订单，反引号关键字形态） */
     fun cancelStaleOrders(orderIds: List<Int>): Boolean =

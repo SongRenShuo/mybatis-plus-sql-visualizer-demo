@@ -78,7 +78,9 @@ src/main/resources/
 | Provider 族注解 SQL | `UserMapper` + `UserSqlProvider` |
 | 自研 maintainPage XML（`<pages><maintainPage>` + CDATA SQL + 列元数据） | `resources/pages/user-maintain.xml` |
 
-> 版本墙：`eqSql`/`selectIgnore` 需 MP ≥ 3.5.4，`setIncrBy/setDecrBy` 需 ≥ 3.5.6，本地未引入，暂缺。
+> 版本说明（2026-09-07 升级勘误，经本地 jar javap 逐版核实）：`mybatis-plus-demo` 与 `mybatis-plus-kotlin-demo` 已升级 **MP 3.5.7**，`mybatis-plus-join-demo` 保留 **MP 3.5.2 + MPJ 1.5.8** 作为旧版本对照基线。3.5.4 相对 3.5.3.1 对本语料无增量；`eqSql`、`setIncrBy/setDecrBy` 实际落地于 **MP 3.5.6**（升 3.5.7 解锁，语料已补）。勘误三条：`selectIgnore` 为 MPJ ≥ 1.5.9 提供的方法（MP 各版本均无）；`LambdaDeleteWrapper` 类在 MP 任何版本均不存在（插件构造名映射为防御性条目），条件删除用 remove(updateWrapper) 惯用法；`SqlCondition` 在 MP 中始终是常量类而非注解，字段级条件拼接的正确用法是 `@TableField(condition = SqlCondition.LIKE)`（已在 `SysConfig` 演示）。MPJ `selectSum/Max/Min/Avg/Len` 族仍需 MPJ ≥ 1.5.9（1.5.8 无），MPJ 升级需验证与 MP 3.5.2 的 adapter 配对，另行评估。
+>
+> Kotlin 兼容性注记：MP 3.5.6 起 orderBy 族新增 Kotlin 变长重载，与单列形态在 Kotlin 中产生重载二义——Kotlin 语料一律显式多列排序（`byAgeRange` 等 4 处已按此修正）。
 
 ### mybatis-plus-join-demo（MPJ 1.5.8）
 
@@ -125,6 +127,6 @@ src/main/resources/
 3. 注释不要出现「包装类名 + `(` 或 `<`」字样（检测器只跳过 `//` 行，块注释体会误触发）；
 4. 已知 MVP 边界：Kotlin 关键字 `in` 反引号调用（`byBacktickIn`）、尾随 lambda、跨行链不被识别，语料中保留作 PSI 深化后回归。
 
-> 版本墙：MP 3.5.3.1 无 LambdaDeleteWrapper（3.5.4+），条件删除用 remove(updateWrapper) 惯用法；MPJ Kotlin 扩展插件侧为 🟡 未立项，本模块不含 MPJ 场景。
+> 版本说明：本模块随 2026-09-07 升级使用 MP 3.5.7。勘误：`LambdaDeleteWrapper` 类在 MP 任何版本均不存在（插件构造名映射为防御性条目），条件删除用 remove(updateWrapper) 惯用法；MPJ Kotlin 扩展插件侧为 🟡 未立项，本模块不含 MPJ 场景。MP 3.5.6+ orderBy 族 Kotlin 变长重载与单列调用二义，语料统一显式多列排序。
 
 > 注意：三个子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作仓库说明占位。

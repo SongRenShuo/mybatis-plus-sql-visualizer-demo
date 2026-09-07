@@ -3,6 +3,7 @@ package cn.song.mybatisplusdemo.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.KeySequence;
 import com.baomidou.mybatisplus.annotation.OrderBy;
+import com.baomidou.mybatisplus.annotation.SqlCondition;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -13,9 +14,9 @@ import lombok.experimental.Accessors;
 
 /**
  * 系统配置表(SysConfig)实体类
- * 实体注解演示：@KeySequence（序列主键，Oracle/PG 场景）、@OrderBy（默认排序，MP 3.5.3.1 属性为 asc/sort）、
- * @EnumValue（见 ConfigTypeEnum）；@SqlCondition 注解 MP 3.5.4+ 才有，本版本仅有常量类，
- * 同时继承 Model 演示 ActiveRecord 形态
+ * 实体注解演示：@KeySequence（序列主键，Oracle/PG 场景）、@OrderBy（默认排序）、
+ * @TableField(condition = SqlCondition.LIKE)（字段级查询条件拼接方言，SqlCondition 为常量类而非注解）、
+ * @EnumValue（见 ConfigTypeEnum），同时继承 Model 演示 ActiveRecord 形态
  *
  * @author SongRenShuo
  */
@@ -35,8 +36,9 @@ public class SysConfig extends Model<SysConfig> {
     private Integer id;
 
     /**
-     * 配置键
+     * 配置键（@TableField.condition：实体自带 LIKE 查询条件，wrapper 无该字段条件时自动拼接）
      */
+    @TableField(condition = SqlCondition.LIKE)
     private String configKey;
 
     /**

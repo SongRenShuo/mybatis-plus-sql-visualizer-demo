@@ -29,7 +29,7 @@ public interface MpjFullCoverageService {
     List<UserDTO> ifExistsFamily(Integer age, String tel, List<Integer> ids);
 
     /**
-     * 聚合列扩展：selectAsClass/selectCount/selectFunc 字符串模板 {0}/selectFilter
+     * 聚合列扩展：selectAsClass/selectCount/聚合族 Sum/Max/Min/Avg/Len/selectFunc 模板 {0}/selectFilter
      */
     List<Map<String, Object>> aggregateExt();
 

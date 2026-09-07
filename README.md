@@ -78,7 +78,7 @@ src/main/resources/
 | Provider 族注解 SQL | `UserMapper` + `UserSqlProvider` |
 | 自研 maintainPage XML（`<pages><maintainPage>` + CDATA SQL + 列元数据） | `resources/pages/user-maintain.xml` |
 
-> 版本说明（2026-09-07 升级勘误，经本地 jar javap 逐版核实）：`mybatis-plus-demo` 与 `mybatis-plus-kotlin-demo` 已升级 **MP 3.5.7**，`mybatis-plus-join-demo` 保留 **MP 3.5.2 + MPJ 1.5.8** 作为旧版本对照基线。3.5.4 相对 3.5.3.1 对本语料无增量；`eqSql`、`setIncrBy/setDecrBy` 实际落地于 **MP 3.5.6**（升 3.5.7 解锁，语料已补）。勘误三条：`selectIgnore` 为 MPJ ≥ 1.5.9 提供的方法（MP 各版本均无）；`LambdaDeleteWrapper` 类在 MP 任何版本均不存在（插件构造名映射为防御性条目），条件删除用 remove(updateWrapper) 惯用法；`SqlCondition` 在 MP 中始终是常量类而非注解，字段级条件拼接的正确用法是 `@TableField(condition = SqlCondition.LIKE)`（已在 `SysConfig` 演示）。MPJ `selectSum/Max/Min/Avg/Len` 族仍需 MPJ ≥ 1.5.9（1.5.8 无），MPJ 升级需验证与 MP 3.5.2 的 adapter 配对，另行评估。
+> 版本说明（2026-09-07 升级勘误，经本地 jar javap 逐版核实）：`mybatis-plus-demo` 与 `mybatis-plus-kotlin-demo` 已升级 **MP 3.5.7**，`mybatis-plus-join-demo` 保留 **MP 3.5.2 + MPJ 1.5.8** 作为旧版本对照基线。3.5.4 相对 3.5.3.1 对本语料无增量；`eqSql`、`setIncrBy/setDecrBy` 实际落地于 **MP 3.5.6**（升 3.5.7 解锁，语料已补）。勘误三条：`selectIgnore` 为 MPJ 字符串链（MPJQueryWrapper）专属方法、`LambdaDeleteWrapper` 类在 MP 任何版本均不存在（插件构造名映射为防御性条目），条件删除用 remove(updateWrapper) 惯用法；`SqlCondition` 在 MP 中始终是常量类而非注解，字段级条件拼接的正确用法是 `@TableField(condition = SqlCondition.LIKE)`（已在 `SysConfig` 演示）。**MPJ 维持 1.5.8 不升级**：经与 1.5.9 三重全量比对（类清单/Query 接口/MPJQueryWrapper 方法）零 API 增量，且 1.5.9 配对口径面向 MP 3.5.17+，聚合族（selectSum/Max/Min/Avg/Len）与 selectIgnore 均为 1.5.8 已有能力、语料已补齐，详见《[MPJ升级评估-调研报告](docs/调研报告/20260907-0846-MPJ升级评估-调研报告.md)》。
 >
 > Kotlin 兼容性注记：MP 3.5.6 起 orderBy 族新增 Kotlin 变长重载，与单列形态在 Kotlin 中产生重载二义——Kotlin 语料一律显式多列排序（`byAgeRange` 等 4 处已按此修正）。
 
@@ -89,10 +89,10 @@ src/main/resources/
 | innerJoin/rightJoin/fullJoin、4 参别名、5 参 rightAlias、on-lambda 多条件 + apply、ext MFunction 扩展 ON | `MpjFullCoverageServiceImpl#joinKindsAndOverloads` / `#onLambdaApply` |
 | 子查询条件族 `(col, Class, wrapper)`：in/notIn/exists | `#subqueryConditions` |
 | IfExists 族：eqIfExists/gtIfExists/likeIfExists/betweenIfExists/notBetweenIfExists/inIfNotEmpty/notInIfNotEmpty | `#ifExistsFamily` |
-| selectAsClass/selectCount/selectFunc 字符串模板 {0}/selectFilter | `#aggregateExt` |
+| selectAsClass/selectCount/聚合族 selectSum/Max/Min/Avg/Len（各 3 重载）/selectFunc 字符串模板 {0}/selectFilter | `#aggregateExt` |
 | updateJoin：setUpdateEntity/set 副表列/setIncrBy/setDecrBy/setApply | `#updateJoinExt` |
 | deleteJoin：主表删除/delete 指定表 | `#deleteJoinExt` |
-| MPJQueryWrapper 字符串聚合 + IN 子查询 + 分页 | `#queryStringExt` |
+| MPJQueryWrapper 字符串链：selectAll+selectIgnore/聚合子查询列/IN 子查询/分页 | `#queryStringExt` |
 
 > 版本墙：`selectSum/Max/Min/Avg/Len` 需 MPJ ≥ 1.5.9，本地为 1.5.8，暂缺。
 

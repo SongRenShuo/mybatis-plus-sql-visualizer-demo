@@ -104,7 +104,8 @@ public class MpjFullCoverageServiceImpl implements MpjFullCoverageService {
     }
 
     /**
-     * 聚合列扩展：selectAsClass/selectCount/selectFunc 字符串模板 {0}/selectFilter
+     * 聚合列扩展：selectAsClass/selectCount/聚合族（Sum/Max/Min/Avg/Len，各 3 重载，1.5.8 已有）/
+     * selectFunc 字符串模板 {0}/selectFilter
      */
     @Override
     public List<Map<String, Object>> aggregateExt() {
@@ -112,6 +113,13 @@ public class MpjFullCoverageServiceImpl implements MpjFullCoverageService {
                 // selectAsClass(Class, Class)：实体列按目标 DTO 映射输出
                 .selectAsClass(UserDO.class, UserDTO.class)
                 .selectCount(UserDO::getId, "total")
+                // 聚合族三重载：(列, 别名字符串)、(列, 别名SFunction)、(列)
+                .selectSum(UserDO::getAge, "sum_age")
+                .selectMax(UserDO::getAge, UserDTO::getAge)
+                .selectMin(UserDO::getAge, "min_age")
+                .selectAvg(UserDO::getAge, "avg_age")
+                // selectLen → LENGTH(col) AS 别名
+                .selectLen(UserDO::getName, "name_len")
                 // 字符串模板函数：IFNULL({0}, {1})，{0}/{1} 依次取 accept 的列
                 .selectFunc("IFNULL({0}, {1})", c -> c.accept(UserDO::getAge, UserDO::getSex), "age_or_sex")
                 // selectFilter(Class, Predicate<SelectCache>)：按列元数据过滤输出列
@@ -186,8 +194,10 @@ public class MpjFullCoverageServiceImpl implements MpjFullCoverageService {
         Page<UserDTO> page = new Page<>(1, 10);
         Page<UserDTO> result = userMapper.selectJoinPage(page, UserDTO.class,
                 JoinWrappers.query(UserDO.class)
-                        .select("t.id", "t.name",
-                                "(select count(*) from user_address ua where ua.user_id = t.id) AS tel")
+                        .selectAll(UserDO.class)
+                        // selectIgnore：从 selectAll 结果剔除列（字符串链专属方法，1.5.8 已有）
+                        .selectIgnore("head_img")
+                        .select("(select count(*) from user_address ua where ua.user_id = t.id) AS tel")
                         .leftJoin("user_address addr on t.id = addr.user_id")
                         .in("t.id", "select user_id from user_address where status = 1")
                         .groupBy("t.id", "t.name")

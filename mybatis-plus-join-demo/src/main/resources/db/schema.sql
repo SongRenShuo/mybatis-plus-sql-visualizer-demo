@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS station_info;
 DROP TABLE IF EXISTS user_address;
 DROP TABLE IF EXISTS area;
 DROP TABLE IF EXISTS `user`;
+DROP TABLE IF EXISTS `user_2026`;
 
 -- 用户表（MPJ 主表）
 CREATE TABLE `user` (
@@ -22,6 +23,16 @@ CREATE TABLE `user` (
     `head_img` VARCHAR(255) DEFAULT NULL COMMENT '头像',
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB COMMENT = '用户表';
+
+-- 用户表 2026（setTableName 动态表名演示：/mpj/user/page 使用 setTableName(name -> name + "_2026")）
+CREATE TABLE `user_2026` (
+    `id`       INT         NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `name`     VARCHAR(64) NOT NULL COMMENT '姓名',
+    `age`      INT         DEFAULT NULL COMMENT '年龄',
+    `sex`      TINYINT     DEFAULT 1 COMMENT '性别（1男 2女）',
+    `head_img` VARCHAR(255) DEFAULT NULL COMMENT '头像',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB COMMENT = '用户表2026';
 
 -- 用户地址表（MPJ 关联表 user_address）
 CREATE TABLE `user_address` (
@@ -66,6 +77,11 @@ CREATE TABLE `station_info` (
 
 -- 初始数据
 INSERT INTO `user` (`id`, `name`, `age`, `sex`, `head_img`) VALUES
+(1, '张三', 20, 1, 'img/zhangsan.png'),
+(2, '李四', 25, 1, 'img/lisi.png'),
+(3, '王五', 30, 2, 'img/wangwu.png');
+
+INSERT INTO `user_2026` (`id`, `name`, `age`, `sex`, `head_img`) VALUES
 (1, '张三', 20, 1, 'img/zhangsan.png'),
 (2, '李四', 25, 1, 'img/lisi.png'),
 (3, '王五', 30, 2, 'img/wangwu.png');

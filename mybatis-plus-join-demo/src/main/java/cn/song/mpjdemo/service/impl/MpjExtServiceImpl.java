@@ -70,7 +70,7 @@ public class MpjExtServiceImpl implements MpjExtService {
     public List<UserDTO> selectCollectionWithFilter() {
         MPJLambdaWrapper<UserDO> wrapper = JoinWrappers.lambda(UserDO.class)
                 .selectAll(UserDO.class)
-                .selectCollection("user_address", AddressDO.class, UserDTO::getAddressList)
+                .selectCollection(AddressDO.class, UserDTO::getAddressList)
                 .leftJoin(AddressDO.class, on -> on
                         .eq(AddressDO::getUserId, UserDO::getId)
                         .eq(AddressDO::getStatus, 1))
@@ -135,7 +135,7 @@ public class MpjExtServiceImpl implements MpjExtService {
     public List<UserDTO> customJoinAndApply() {
         MPJLambdaWrapper<UserDO> wrapper = JoinWrappers.lambda(UserDO.class)
                 .selectAll(UserDO.class)
-                .select(AddressDO::getTel)
+                .select("addr.tel")
                 .join("LEFT JOIN", true, "user_address addr ON addr.user_id = t.id")
                 .apply("t.age > {0}", 18)
                 .last("limit 10");
@@ -164,12 +164,8 @@ public class MpjExtServiceImpl implements MpjExtService {
     @Override
     public Map<String, Object> chainCountOneList(Integer id) {
         Map<String, Object> result = new HashMap<>();
-        MPJLambdaWrapper<UserDO> wrapper = JoinWrappers.lambda(UserDO.class)
-                .selectAll(UserDO.class)
-                .leftJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId);
-        // 链式 count
+        // 链式 count（count 不能携带 select 列，否则会生成 COUNT(多列) 语法错误）
         Long count = JoinWrappers.lambda(UserDO.class)
-                .selectAll(UserDO.class)
                 .leftJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
                 .eq(UserDO::getId, id)
                 .count();
@@ -197,7 +193,6 @@ public class MpjExtServiceImpl implements MpjExtService {
         result.put("one", one);
         result.put("listSize", list.size());
         result.put("pageTotal", page.getTotal());
-        result.put("wrapperCount", wrapper.count());
         return result;
     }
 

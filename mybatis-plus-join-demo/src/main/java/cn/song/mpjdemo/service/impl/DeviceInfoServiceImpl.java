@@ -75,8 +75,6 @@ public class DeviceInfoServiceImpl implements DeviceInfoService {
                         .ge(DeviceInfoEntity::getId, 0)
                         .last("LIMIT 100"))
                 .leftJoin(StationInfoEntity.class, StationInfoEntity::getStationId, DeviceInfoEntity::getStationId)
-                .setTableName(name -> name + "_archive")
-                .pageByMain()
                 .around("/* mpj hint */ ", " /* end */");
         return deviceInfoMapper.selectJoinMapsPage(page, wrapper);
     }
@@ -92,7 +90,10 @@ public class DeviceInfoServiceImpl implements DeviceInfoService {
                 .leftJoin(StationInfoEntity.class, StationInfoEntity::getStationId, DeviceInfoEntity::getStationId)
                 .eq(DeviceInfoEntity::getId, id);
         Map<String, Object> one = deviceInfoMapper.selectJoinMap(wrapper);
-        Long count = deviceInfoMapper.selectJoinCount(wrapper);
+        // selectJoinCount 会复用 wrapper 的 select 列，须用不含 select 列的 wrapper 计数
+        Long count = deviceInfoMapper.selectJoinCount(JoinWrappers.lambda(DeviceInfoEntity.class)
+                .leftJoin(StationInfoEntity.class, StationInfoEntity::getStationId, DeviceInfoEntity::getStationId)
+                .eq(DeviceInfoEntity::getId, id));
         one.put("count", count);
         return one;
     }

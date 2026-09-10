@@ -75,7 +75,7 @@ public class UserServiceImpl implements UserService {
     public List<UserDTO> selectJoinCollection() {
         MPJLambdaWrapper<UserDO> wrapper = JoinWrappers.lambda(UserDO.class)
                 .selectAll(UserDO.class)
-                .selectCollection("user_address", AddressDO.class, UserDTO::getAddressList)
+                .selectCollection(AddressDO.class, UserDTO::getAddressList)
                 .leftJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
                 .eq(UserDO::getId, 1);
         return userMapper.selectJoinList(UserDTO.class, wrapper);
@@ -126,7 +126,6 @@ public class UserServiceImpl implements UserService {
                 .select(AddressDO::getTel)
                 .leftJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
                 .setTableName(name -> name + "_2026")
-                .pageByMain()
                 .eq(UserDO::getId, 1)
                 .around("/* hint */ ", " /* end */");
         return userMapper.selectJoinPage(page, UserDTO.class, wrapper);
@@ -181,30 +180,27 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public List<UserDTO> selectFill() {
-        // 方式一（2 参）：fill(源字段, 回填字段) —— 按回填字段类型推断关联表主键匹配
+        // fill 的源字段与回填字段均须指向结果类型 UserDTO（fill 会反射回填到查询结果对象上）
+        // 二参 fill(源字段, 回填字段) 会按回填字段泛型(List<AddressDTO>)推断关联表，
+        // 而 AddressDTO 无 Mapper，故此处一律显式指定关联实体 AddressDO。
+        // 方式二（3 参 oneClass）：fill(源字段, 关联实体类, 回填字段)
         List<UserDTO> list = userMapper.selectJoinList(UserDTO.class,
                 JoinWrappers.lambda(UserDO.class)
                         .selectAll(UserDO.class)
                         .leftJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
-                        .fill(UserDO::getId, UserDO::getAddressList));
-        // 方式二（3 参 oneClass）：fill(源字段, 关联实体类, 回填字段)
-        userMapper.selectJoinList(UserDTO.class,
-                JoinWrappers.lambda(UserDO.class)
-                        .selectAll(UserDO.class)
-                        .leftJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
-                        .fill(UserDO::getId, AddressDO.class, UserDO::getAddressList));
+                        .fill(UserDTO::getId, AddressDO.class, UserDTO::getAddressList));
         // 方式三（3 参 oneField）：fill(源字段, 关联表外键字段, 回填字段)
         userMapper.selectJoinList(UserDTO.class,
                 JoinWrappers.lambda(UserDO.class)
                         .selectAll(UserDO.class)
                         .leftJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
-                        .fill(UserDO::getId, AddressDO::getUserId, UserDO::getAddressList));
+                        .fill(UserDTO::getId, AddressDO::getUserId, UserDTO::getAddressList));
         // 方式四（4 参 + consumer）：fill(源字段, 关联实体类, 回填字段, w -> w.eq(...))
         userMapper.selectJoinList(UserDTO.class,
                 JoinWrappers.lambda(UserDO.class)
                         .selectAll(UserDO.class)
                         .leftJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
-                        .fill(UserDO::getId, AddressDO.class, UserDO::getAddressList,
+                        .fill(UserDTO::getId, AddressDO.class, UserDTO::getAddressList,
                                 w -> w.eq(AddressDO::getStatus, 1)));
         return list;
     }

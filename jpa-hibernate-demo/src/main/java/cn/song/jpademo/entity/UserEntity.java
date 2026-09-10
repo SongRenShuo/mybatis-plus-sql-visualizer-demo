@@ -1,5 +1,7 @@
 package cn.song.jpademo.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -95,8 +97,12 @@ public class UserEntity implements Serializable {
     private LocalDateTime createTime;
 
     /**
-     * 部门（多对一，JOIN 用例）
+     * 部门（多对一，JOIN 用例）。
+     * open-in-view=false 时懒加载代理无法在 JSON 序列化阶段初始化，
+     * 序列化会抛 LazyInitializationException，接口响应只输出 departmentId；
+     * 关联属性本身保留，JPQL/HQL/Criteria 的 JOIN FETCH 用例不受影响。
      */
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", insertable = false, updatable = false)
     private DepartmentEntity department;

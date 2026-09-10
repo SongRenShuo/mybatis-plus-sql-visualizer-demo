@@ -6,6 +6,7 @@ import cn.song.jpademo.entity.WmsDockBooking;
 import cn.song.jpademo.service.HibernateTemplateDemoService;
 import org.springframework.orm.hibernate5.HibernateTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
@@ -109,7 +110,9 @@ public class HibernateTemplateDemoServiceImpl implements HibernateTemplateDemoSe
     public List<WmsDockBooking> listActiveByWarehouse(String warehouseId, Integer status) {
         Map<String, Object> params = new HashMap<>();
         params.put("warehouseId", warehouseId);
-        params.put("status", status);
+        // booking.status 映射的是字符串列（F/P），Integer 直绑会抛
+        // "Parameter value did not match expected type"，这里转成字符串再传
+        params.put("status", String.valueOf(status));
         return commonDao.findByQuery(
                 "from WmsDockBooking booking "
                         + "where booking.warehouseId = :warehouseId "
@@ -123,6 +126,7 @@ public class HibernateTemplateDemoServiceImpl implements HibernateTemplateDemoSe
     // ------------------------------------------------------------------
 
     @Override
+    @Transactional(transactionManager = "hibernateTransactionManager")
     public int updateStatusById(Long id, String newStatus) {
         return commonDao.execute(
                 "update WmsDockBooking booking set booking.status = :newStatus where booking.id = :id",
@@ -134,6 +138,7 @@ public class HibernateTemplateDemoServiceImpl implements HibernateTemplateDemoSe
     // ------------------------------------------------------------------
 
     @Override
+    @Transactional(transactionManager = "hibernateTransactionManager")
     public int deleteAsnById(Long id) {
         return commonDao.execute(
                 "delete from WmsAsn asn where asn.id = :id",
@@ -156,6 +161,8 @@ public class HibernateTemplateDemoServiceImpl implements HibernateTemplateDemoSe
 
     @Override
     public List<WmsDockBooking> findByStatusPositional(String status) {
+        // Hibernate 5.2+ 不再支持裸 ? 占位（Legacy-style query parameters 抛 QueryException），
+        // 位置形态统一用 ?1 编号占位，DAO 内按 setParameter(1..n) 绑定
         String hql = "from WmsDockBooking booking where booking.status = ?1";
         return commonDao.findByQuery(hql, status);
     }
@@ -195,6 +202,7 @@ public class HibernateTemplateDemoServiceImpl implements HibernateTemplateDemoSe
     // ------------------------------------------------------------------
 
     @Override
+    @Transactional(transactionManager = "hibernateTransactionManager")
     public WmsDockBooking crudDemo(Long id, WmsDockBooking booking) {
         // get/load：单条读取（无记录时 load 抛 ObjectNotFoundException）
         WmsDockBooking loaded = hibernateTemplate.get(WmsDockBooking.class, id);
@@ -203,6 +211,9 @@ public class HibernateTemplateDemoServiceImpl implements HibernateTemplateDemoSe
             hibernateTemplate.save(booking);
             return booking;
         }
+        // 事务内 get 后 loaded 已处于托管态，直接 update 同 id 游离实体会抛
+        // NonUniqueObjectException，先 evict 使其游离再演示 update
+        hibernateTemplate.evict(loaded);
         // update：更新游离实体
         booking.setId(id);
         hibernateTemplate.update(booking);

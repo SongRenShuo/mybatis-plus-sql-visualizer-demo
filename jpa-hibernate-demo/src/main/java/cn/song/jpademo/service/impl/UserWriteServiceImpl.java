@@ -157,21 +157,36 @@ public class UserWriteServiceImpl implements UserWriteService {
     }
 
     /**
-     * em.merge：游离态合并，主键存在则 UPDATE、不存在则 INSERT
+     * em.merge：游离态合并，主键存在则 UPDATE、不存在则 INSERT。
+     * 游离实体只带 id+email，直接 merge 会把 username 覆盖为 null
+     * （user.username 是 NOT NULL，UPDATE 直接抛约束违例），
+     * 因此先取托管实体回填 username 再 merge，保持「存在则更新」语义。
      */
     @Override
     @Transactional
     public UserEntity mergeEntity(UserEntity user) {
+        UserEntity managed = entityManager.find(UserEntity.class, user.getId());
+        if (managed != null) {
+            managed.setEmail(user.getEmail());
+            return entityManager.merge(managed);
+        }
+        if (user.getUsername() == null) {
+            user.setUsername("merged-" + user.getId());
+        }
         return entityManager.merge(user);
     }
 
     /**
-     * em.remove：托管态删除，flush 时 DELETE WHERE 主键等值
+     * em.remove：托管态删除，flush 时 DELETE WHERE 主键等值。
+     * Controller 传入的实体来自另一个只读事务（已游离），
+     * 直接 remove 抛 "Removing a detached instance"，
+     * 与 SimpleJpaRepository.delete 同法：先 merge 回托管态再 remove。
      */
     @Override
     @Transactional
     public void removeEntity(UserEntity user) {
-        entityManager.remove(user);
+        UserEntity managed = entityManager.contains(user) ? user : entityManager.merge(user);
+        entityManager.remove(managed);
     }
 
     /**

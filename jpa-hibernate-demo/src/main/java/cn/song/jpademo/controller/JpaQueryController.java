@@ -59,7 +59,8 @@ public class JpaQueryController {
      * CriteriaQuery 组合条件（and/or/not/between/in/like）
      */
     @GetMapping("/criteria/grouped")
-    public List<UserEntity> criteriaGrouped(String username, Integer ageStart, Integer ageEnd, List<Integer> statuses) {
+    public List<UserEntity> criteriaGrouped(String username, Integer ageStart, Integer ageEnd,
+                                            @org.springframework.web.bind.annotation.RequestParam List<Integer> statuses) {
         return jpaQueryService.criteriaGrouped(username, ageStart, ageEnd, statuses);
     }
 
@@ -164,10 +165,10 @@ public class JpaQueryController {
     }
 
     /**
-     * Criteria Tuple 多列查询
+     * Criteria Tuple 多列查询（映射为 Map 输出，避免 Tuple 内部 Criteria path 对象循环引用序列化失败）
      */
     @GetMapping("/criteria/tuple")
-    public List<javax.persistence.Tuple> criteriaTuple(Integer status) {
+    public List<Map<String, Object>> criteriaTuple(Integer status) {
         return jpaQueryService.criteriaTuple(status);
     }
 
@@ -175,7 +176,8 @@ public class JpaQueryController {
      * HQL 更多：DISTINCT / IN / LIKE / BETWEEN
      */
     @GetMapping("/hqlMore")
-    public List<UserEntity> hqlMore(List<Integer> statuses, Integer minAge, Integer maxAge, String keyword) {
+    public List<UserEntity> hqlMore(@org.springframework.web.bind.annotation.RequestParam List<Integer> statuses,
+                                    Integer minAge, Integer maxAge, String keyword) {
         return jpaQueryService.hqlMore(statuses, minAge, maxAge, keyword);
     }
 

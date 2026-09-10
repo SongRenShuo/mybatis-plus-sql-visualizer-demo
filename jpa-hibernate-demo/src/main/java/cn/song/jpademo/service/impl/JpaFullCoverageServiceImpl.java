@@ -8,6 +8,7 @@ import cn.song.jpademo.repository.UserRepository;
 import cn.song.jpademo.service.JpaFullCoverageService;
 import org.springframework.orm.hibernate5.HibernateTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
@@ -82,19 +83,29 @@ public class JpaFullCoverageServiceImpl implements JpaFullCoverageService {
     }
 
     /**
-     * HibernateTemplate.iterate：迭代查询（懒加载代理，逐条取值，命名参数绑定重载）
+     * HibernateTemplate.iterate：迭代查询（懒加载代理，逐条取值）。
+     * 注意：HibernateTemplate.iterate(String, Object...) 变长重载是 0 起步的位置绑定
+     * （javap 实证无名字数组重载），命名参数 :maxQ 会抛
+     * "Could not locate ordinal parameter [0]"；这里改用 executeWithNativeSession 回调，
+     * 方法加 @Transactional 使回调复用 Jpa 事务的当前 Session（iterate 游标需在会话关闭前消费完）。
      */
     @Override
+    @Transactional(readOnly = true)
     public List<LegacyItem> iterateLegacyItems(Integer maxQuantity) {
-        // HibernateTemplate.iterate 返回原始 Iterator（老式 API 无泛型）
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        Iterator<LegacyItem> iterator = (Iterator) hibernateTemplate.iterate(
-                "FROM LegacyItem li WHERE li.quantity < :maxQ ORDER BY li.id",
-                new String[]{"maxQ"},
-                new Object[]{maxQuantity});
+        Iterator<LegacyItem> iterator = hibernateTemplate.executeWithNativeSession(
+                (org.springframework.orm.hibernate5.HibernateCallback<Iterator<LegacyItem>>) session -> {
+                    org.hibernate.query.Query<LegacyItem> query = session.createQuery(
+                            "FROM LegacyItem li WHERE li.quantity < :maxQ ORDER BY li.id", LegacyItem.class);
+                    query.setParameter("maxQ", maxQuantity);
+                    return query.iterate();
+                });
         List<LegacyItem> items = new ArrayList<>();
         while (iterator.hasNext()) {
-            items.add(iterator.next());
+            LegacyItem item = iterator.next();
+            // iterate 只回读主键形成 ByteBuddy 懒代理：须在会话内先初始化并解包成真实实体
+            // （代理类本身 Jackson 无法序列化，抛 Type definition error: ByteBuddyInterceptor）
+            org.hibernate.Hibernate.initialize(item);
+            items.add(org.hibernate.Hibernate.unproxy(item, LegacyItem.class));
         }
         return items;
     }

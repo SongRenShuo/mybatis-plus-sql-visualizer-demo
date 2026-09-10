@@ -78,19 +78,42 @@ public class CommonDaoHibernateImpl extends HibernateDaoSupport implements Commo
     @Override
     @SuppressWarnings("unchecked")
     public <T> List<T> findByQuery(String hql, Object... params) {
-        String[] names = new String[params.length / 2];
-        Object[] values = new Object[params.length / 2];
-        if (params.length > 0 && params[0] instanceof String
-                && params.length >= 2 && !(params[1] instanceof String)) {
+        if (params.length == 1 && params[0] instanceof java.util.Map) {
+            // Map 单参数形态：每个 entry 一个命名参数
+            java.util.Map<String, Object> paramMap = (java.util.Map<String, Object>) params[0];
+            String[] mapNames = new String[paramMap.size()];
+            Object[] mapValues = new Object[paramMap.size()];
+            int idx = 0;
+            for (java.util.Map.Entry<String, Object> entry : paramMap.entrySet()) {
+                mapNames[idx] = entry.getKey();
+                mapValues[idx] = entry.getValue();
+                idx++;
+            }
+            return (List<T>) getHibernateTemplate().findByNamedParam(hql, mapNames, mapValues);
+        }
+        if (params.length >= 2 && params[0] instanceof String
+                && hql.contains(":" + params[0])) {
             // name-value 交替形态：(name1, value1, name2, value2)
+            // 判定依据：偶数下标是字符串且在 HQL 中以 :name 形式出现
+            String[] names = new String[params.length / 2];
+            Object[] values = new Object[params.length / 2];
             for (int i = 0; i + 1 < params.length; i += 2) {
                 names[i / 2] = (String) params[i];
                 values[i / 2] = params[i + 1];
             }
             return (List<T>) getHibernateTemplate().findByNamedParam(hql, names, values);
         }
-        // 位置参数形态：直接传值（find(String, Object...) 已废弃，演示用）
-        return (List<T>) getHibernateTemplate().find(hql, params);
+        // 位置参数形态：?1 编号占位 + setParameter(1..n) 绑定。
+        // 不能走 HibernateTemplate.find(String, Object...)——它按 0 起步 setParameter(i, value)，
+        // Hibernate 5.2+ 位置参数从 1 起，会抛 "Could not locate ordinal parameter [0]"
+        return (List<T>) getHibernateTemplate().execute(
+                (org.springframework.orm.hibernate5.HibernateCallback<List<T>>) session -> {
+                    org.hibernate.query.Query<T> query = session.createQuery(hql);
+                    for (int i = 0; i < params.length; i++) {
+                        query.setParameter(i + 1, params[i]);
+                    }
+                    return query.list();
+                });
     }
 
     /**

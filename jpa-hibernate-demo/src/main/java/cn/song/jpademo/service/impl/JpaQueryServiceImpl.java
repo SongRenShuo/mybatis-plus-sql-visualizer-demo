@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Tuple;
+import javax.persistence.TupleElement;
 import javax.persistence.criteria.*;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -404,23 +405,34 @@ public class JpaQueryServiceImpl implements JpaQueryService {
 
     /**
      * Criteria Tuple 多列查询（root 字段 + join 字段）
+     * Tuple 内部持有 Criteria path 对象，直接序列化会无限递归，
+     * 这里在会话内转成 Map 输出
      */
     @Override
-    public List<Tuple> criteriaTuple(Integer status) {
+    public List<Map<String, Object>> criteriaTuple(Integer status) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Tuple> cq = cb.createTupleQuery();
         Root<UserEntity> root = cq.from(UserEntity.class);
         Join<Object, Object> deptJoin = root.join("department", JoinType.LEFT);
 
         cq.multiselect(
-                root.get("id"),
-                root.get("username"),
-                root.get("age"),
-                deptJoin.get("name"),
-                deptJoin.get("code"));
+                root.get("id").alias("id"),
+                root.get("username").alias("username"),
+                root.get("age").alias("age"),
+                deptJoin.get("name").alias("deptName"),
+                deptJoin.get("code").alias("deptCode"));
         cq.where(cb.equal(root.get("status"), status));
         cq.orderBy(cb.asc(root.get("id")));
-        return entityManager.createQuery(cq).getResultList();
+        List<Tuple> tuples = entityManager.createQuery(cq).getResultList();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Tuple tuple : tuples) {
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            for (TupleElement<?> element : tuple.getElements()) {
+                row.put(element.getAlias(), tuple.get(element.getAlias()));
+            }
+            rows.add(row);
+        }
+        return rows;
     }
 
     /**

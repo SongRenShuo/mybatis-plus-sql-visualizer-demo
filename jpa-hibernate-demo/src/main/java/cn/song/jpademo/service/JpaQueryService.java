@@ -114,9 +114,9 @@ public interface JpaQueryService {
     List<Object[]> criteriaCase(Integer minAge);
 
     /**
-     * Criteria Tuple 多列查询（root 字段 + join 字段）
+     * Criteria Tuple 多列查询（root 字段 + join 字段，实现内映射为 Map 输出）
      */
-    List<javax.persistence.Tuple> criteriaTuple(Integer status);
+    List<Map<String, Object>> criteriaTuple(Integer status);
 
     /**
      * HQL 更多：DISTINCT / IN / LIKE / BETWEEN / 子查询

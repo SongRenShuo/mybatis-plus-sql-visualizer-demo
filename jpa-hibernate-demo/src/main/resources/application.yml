@@ -20,6 +20,10 @@ spring:
       hibernate:
         format_sql: true
         use_sql_comments: true
+        # HibernateTemplate/HibernateDaoSupport 老式 DAO 复用 JPA 事务的当前 Session：
+        # JpaTransactionManager 事务激活时 SpringSessionContext 从 EntityManagerHolder 解出同一 Session，
+        # 使 template 的 UPDATE/DELETE 与 CRUD 参与 JPA 事务（否则 template 每次开新会话抛 TransactionRequiredException）
+        current_session_context_class: org.springframework.orm.hibernate5.SpringSessionContext
     open-in-view: false
 
 logging:

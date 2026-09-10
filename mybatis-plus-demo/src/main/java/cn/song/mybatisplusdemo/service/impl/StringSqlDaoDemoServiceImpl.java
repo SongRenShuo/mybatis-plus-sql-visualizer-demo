@@ -53,7 +53,7 @@ public class StringSqlDaoDemoServiceImpl implements StringSqlDaoDemoService {
                 "  WT.FINISH_TYPE IS NULL " +
                 "  AND WT.OWNER = :CUR_USER " +
                 "GROUP BY " +
-                "  wp.PROC_DEF_KEY " +
+                "  wp.PROC_DEF_KEY, wp.PROC_NAME " +
                 "UNION ALL " +
                 "SELECT " +
                 "  ROW_NUMBER() OVER (ORDER BY wp.PROC_NAME) as task_id, " +
@@ -77,8 +77,8 @@ public class StringSqlDaoDemoServiceImpl implements StringSqlDaoDemoService {
                 "  CASE " +
                 "    WHEN cd.policy_name LIKE '%创业担%' THEN '(创业担)担保函申请受理' " +
                 "    ELSE '(非创业担)担保函申请受理' " +
-                "  END ";
-        List<ScheduleVO> scheduleVOList = beanCruder.selectList(ScheduleVO.class, sql, "CUR_USER", userId);
+                "  END, wp.PROC_NAME, cd.policy_name ";
+        List<ScheduleVO> scheduleVOList = beanCruder.selectList(ScheduleVO.class, sql, "CUR_USER", String.valueOf(userId));
         return scheduleVOList;
     }
 

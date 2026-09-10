@@ -60,7 +60,8 @@ public class WrapperFullCoverageServiceImpl implements WrapperFullCoverageServic
     public List<User> listBySqlFragmentExt(String minAmount) {
         QueryWrapper<User> wrapper = new QueryWrapper<>();
         wrapper.eqSql("status", "1");
-        wrapper.geSql("id", "select user_id from t_order where amount >= " + minAmount);
+        // geSql 比较的是标量值，子查询必须单行：min() 聚合保证单行返回
+        wrapper.geSql("id", "select min(user_id) from t_order where amount >= " + minAmount);
         wrapper.ltSql("id", "select max(id) from user");
         return userMapper.selectList(wrapper);
     }
@@ -116,11 +117,12 @@ public class WrapperFullCoverageServiceImpl implements WrapperFullCoverageServic
 
     /**
      * first / comment / last 三段直拼（3.5.3+）
+     * first 片段拼在 SELECT 关键字之前，MySQL 下合法形态为前置块注释
      */
     @Override
     public List<User> listByFirstCommentLast(String keyword) {
         QueryWrapper<User> wrapper = new QueryWrapper<>();
-        wrapper.first("DISTINCT");
+        wrapper.first("/* first-segment */");
         wrapper.comment("按用户名模糊检索");
         wrapper.like("username", keyword);
         wrapper.last("limit 20");

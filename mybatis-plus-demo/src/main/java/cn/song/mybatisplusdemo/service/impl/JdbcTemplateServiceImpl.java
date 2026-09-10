@@ -95,7 +95,8 @@ public class JdbcTemplateServiceImpl implements JdbcTemplateService {
                 "FROM user WHERE id = ?";
 
         log.info("[JdbcTemplate] 单对象查询 SQL: {}", sql);
-        return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
+        // 记录不存在时返回空 Map，避免 EmptyResultDataAccessException 导致 500
+        List<Map<String, Object>> rows = jdbcTemplate.query(sql, (rs, rowNum) -> {
             Map<String, Object> row = new HashMap<>();
             row.put("id", rs.getInt("id"));
             row.put("username", rs.getString("username"));
@@ -107,6 +108,7 @@ public class JdbcTemplateServiceImpl implements JdbcTemplateService {
             row.put("create_time", rs.getTimestamp("create_time"));
             return row;
         }, id);
+        return rows.isEmpty() ? new HashMap<>() : rows.get(0);
     }
 
     // ==================== 动态 SQL ====================
@@ -517,7 +519,8 @@ public class JdbcTemplateServiceImpl implements JdbcTemplateService {
 
         String groupSql = "GROUP BY u.id, u.username, u.age, u.email, r.name, d.name ";
 
-        String orderSql = "ORDER BY u.total_amount DESC ";
+        // MySQL 不允许用限定名引用 SELECT 别名（u.total_amount），排序需重复聚合表达式
+        String orderSql = "ORDER BY IFNULL(SUM(o.amount), 0) DESC ";
 
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("status", 1);

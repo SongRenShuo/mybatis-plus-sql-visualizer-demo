@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
@@ -106,7 +107,8 @@ public class WrapperExtController {
      * 显式 LambdaDeleteWrapper
      */
     @GetMapping("/lambdaDelete")
-    public boolean lambdaDelete(Integer maxAge, List<Integer> roleIds) {
+    public boolean lambdaDelete(@RequestParam(required = false) Integer maxAge,
+                                @RequestParam(required = false) List<Integer> roleIds) {
         return wrapperExtService.removeByLambdaDelete(maxAge, roleIds);
     }
 

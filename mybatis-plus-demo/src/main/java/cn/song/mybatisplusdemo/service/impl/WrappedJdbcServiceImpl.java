@@ -65,7 +65,9 @@ public class WrappedJdbcServiceImpl implements WrappedJdbcService {
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("id", id);
 
-        return dbHelper.queryForMap(sql, paramMap);
+        // 记录不存在（含已逻辑删除）时返回空 Map，避免 EmptyResultDataAccessException
+        List<Map<String, Object>> rows = dbHelper.queryForList(sql, paramMap);
+        return rows.isEmpty() ? new HashMap<>() : rows.get(0);
     }
 
     /**

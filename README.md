@@ -1,6 +1,6 @@
 # mybatis-plus-sql-visualizer-demo
 
-[mybatis-plus-sql-visualizer](https://gitee.com/SongRenShuo/mybatis-plus-sql-visualizer) 插件的测试用例 Demo 集合项目。
+[Sql Visualizer](https://gitee.com/SongRenShuo/mybatis-plus-sql-visualizer) 插件的测试用例 Demo 集合项目。
 
 本仓库包含四个相互独立的 Spring Boot 子项目（Maven 多模块仓库，每个子项目可单独构建运行），
 覆盖插件支持的各 ORM 主题与 SQL 来源形态，为插件提供真实、丰富的 SQL 预览 / SQL 生成测试场景：

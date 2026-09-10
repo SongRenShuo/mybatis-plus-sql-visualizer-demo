@@ -12,6 +12,9 @@ USE jpa_demo;
 DROP TABLE IF EXISTS t_order;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS department;
+DROP TABLE IF EXISTS wms_asn;
+DROP TABLE IF EXISTS wms_dock_booking;
+DROP TABLE IF EXISTS legacy_item;
 
 -- 用户表
 CREATE TABLE `user` (
@@ -49,6 +52,42 @@ CREATE TABLE `t_order` (
     KEY `idx_customer_id` (`customer_id`)
 ) ENGINE = InnoDB COMMENT = '订单表';
 
+-- 预约单表（WmsAsn，HQL LEFT JOIN 关联目标）
+CREATE TABLE `wms_asn` (
+    `id`           BIGINT      NOT NULL AUTO_INCREMENT COMMENT '主键（join键）',
+    `asn_code`     VARCHAR(64) DEFAULT NULL COMMENT '预约单号',
+    `warehouse_id` VARCHAR(32) DEFAULT NULL COMMENT '仓库ID',
+    `create_time`  DATETIME    DEFAULT NULL COMMENT '创建时间',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB COMMENT = '预约单表';
+
+-- 入库预约单表（WmsDockBooking，含 @Embedded 内嵌列 created_time）
+CREATE TABLE `wms_dock_booking` (
+    `id`              BIGINT      NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `related_bill_id` BIGINT      DEFAULT NULL COMMENT '关联单据ID（LEFT JOIN WmsAsn 的关联键）',
+    `warehouse_id`    VARCHAR(32) DEFAULT NULL COMMENT '仓库ID',
+    `status`          VARCHAR(8)  DEFAULT NULL COMMENT '状态（F=已完成 P=进行中）',
+    `type`            VARCHAR(8)  DEFAULT NULL COMMENT '类型（R=入库）',
+    `arrival_time`    DATETIME    DEFAULT NULL COMMENT '到达时间',
+    `initial_eta`     DATETIME    DEFAULT NULL COMMENT '初始预计到达时间',
+    `latest_eta`      DATETIME    DEFAULT NULL COMMENT '最新预计到达时间',
+    `atd`             DATETIME    DEFAULT NULL COMMENT '实际发车时间',
+    `created_time`    DATETIME    DEFAULT NULL COMMENT '最后更新时间（内嵌 updateInfo.createdTime）',
+    PRIMARY KEY (`id`),
+    KEY `idx_wdb_related_bill_id` (`related_bill_id`)
+) ENGINE = InnoDB COMMENT = '入库预约单表';
+
+-- 遗留库存项表（LegacyItem，hbm.xml 映射，见 resources/hbm/LegacyItem.hbm.xml）
+CREATE TABLE `legacy_item` (
+    `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `item_code`  VARCHAR(64)  DEFAULT NULL COMMENT '物料编码',
+    `item_name`  VARCHAR(128) DEFAULT NULL COMMENT '物料名称',
+    `quantity`   INT          DEFAULT NULL COMMENT '库存数量',
+    `deprecated` TINYINT(1)   DEFAULT NULL COMMENT '是否已废弃',
+    `in_time`    DATETIME     DEFAULT NULL COMMENT '入库时间',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB COMMENT = '遗留库存项表';
+
 -- 初始数据
 INSERT INTO `department` (`id`, `name`, `code`, `parent_id`) VALUES
 (1, '技术部', 'TECH', NULL),
@@ -67,3 +106,18 @@ INSERT INTO `t_order` (`id`, `order_no`, `customer_id`, `total_amount`, `create_
 (2, 'JP20260101002', 2, 599.00, NOW()),
 (3, 'JP20260102001', 2, 59.00, NOW()),
 (4, 'JP20260102002', 3, 899.00, NOW());
+
+INSERT INTO `wms_asn` (`id`, `asn_code`, `warehouse_id`, `create_time`) VALUES
+(1, 'ASN20260101001', 'WH01', NOW()),
+(2, 'ASN20260101002', 'WH01', NOW()),
+(3, 'ASN20260102001', 'WH02', NOW());
+
+INSERT INTO `wms_dock_booking` (`id`, `related_bill_id`, `warehouse_id`, `status`, `type`, `arrival_time`, `initial_eta`, `latest_eta`, `atd`, `created_time`) VALUES
+(1, 1, 'WH01', 'F', 'R', NOW(), NOW(), NOW(), NOW(), NOW()),
+(2, 2, 'WH01', 'P', 'R', NULL, NOW(), NOW(), NULL, NOW()),
+(3, NULL, 'WH02', 'P', 'R', NULL, NOW(), NOW(), NULL, NOW());
+
+INSERT INTO `legacy_item` (`id`, `item_code`, `item_name`, `quantity`, `deprecated`, `in_time`) VALUES
+(1, 'MAT001', '螺栓', 100, 0, NOW()),
+(2, 'MAT002', '垫片', 5, 0, NOW()),
+(3, 'MAT003', '旧款支架', 0, 1, NOW());

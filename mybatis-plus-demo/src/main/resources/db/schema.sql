@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS t_order;
 DROP TABLE IF EXISTS user;
 DROP TABLE IF EXISTS department;
 DROP TABLE IF EXISTS role;
+DROP TABLE IF EXISTS sys_config;
 
 -- 用户表
 CREATE TABLE `user` (
@@ -63,6 +64,17 @@ CREATE TABLE `t_order` (
     KEY `idx_user_id` (`user_id`)
 ) ENGINE = InnoDB COMMENT = '订单表';
 
+-- 系统配置表
+CREATE TABLE `sys_config` (
+    `id`           INT          NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `config_key`   VARCHAR(128) NOT NULL COMMENT '配置键',
+    `config_value` VARCHAR(255) DEFAULT NULL COMMENT '配置值',
+    `config_type`  INT          DEFAULT NULL COMMENT '配置类型（1系统配置 2业务配置 3安全配置，对应 ConfigTypeEnum @EnumValue code）',
+    `remark`       VARCHAR(255) DEFAULT NULL COMMENT '备注',
+    `sort_no`      INT          DEFAULT 0 COMMENT '排序号（@OrderBy 默认倒序）',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB COMMENT = '系统配置表';
+
 -- 初始数据
 INSERT INTO `role` (`id`, `name`, `code`, `description`) VALUES
 (1, '管理员', 'ADMIN', '系统管理员'),
@@ -85,3 +97,8 @@ INSERT INTO `t_order` (`id`, `order_no`, `user_id`, `amount`, `status`, `create_
 (2, 'NO20260101002', 1, 59.00, 0, NOW()),
 (3, 'NO20260102001', 2, 299.00, 1, NOW()),
 (4, 'NO20260102002', 3, 120.50, 2, NOW());
+
+INSERT INTO `sys_config` (`id`, `config_key`, `config_value`, `config_type`, `remark`, `sort_no`) VALUES
+(1, 'site.name', 'mp-demo', 1, '站点名称', 3),
+(2, 'order.payTimeout', '30', 2, '订单支付超时时间（分钟）', 2),
+(3, 'password.minLength', '6', 3, '密码最小长度', 1);

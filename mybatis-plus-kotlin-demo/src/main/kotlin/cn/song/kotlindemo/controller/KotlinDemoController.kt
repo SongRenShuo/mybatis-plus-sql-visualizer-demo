@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController
  */
 @RestController
 @RequestMapping("/kotlin")
-class KotlinDemoController(private val scenarios: KotlinWrapperScenarios) {
+open class KotlinDemoController(private val scenarios: KotlinWrapperScenarios) {
 
     /** 基础等值 + 模糊 */
     @GetMapping("/byUsername")

@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service
  * @author SongRenShuo
  */
 @Service
-class KotlinWrapperScenarios(
+open class KotlinWrapperScenarios(
     private val userService: KUserService,
     private val orderService: KOrderService,
     private val userMapper: KUserMapper,
@@ -87,15 +87,15 @@ class KotlinWrapperScenarios(
 
     // ---------------- 直接构造形态（构造类名行内识别） ----------------
 
-    /** Lambda 查询包装直接构造（构造行 + 条件同行） */
+    /** Lambda 查询包装直接构造（构造行 + 条件同行；SFunction 位置用 KtSFunctionAccessors 的 @JvmName 顶层函数引用，属性引用会编译成 MP 无法解析的合成适配方法） */
     fun byLambdaQueryDirect(status: Int): List<KUser> {
-        val queryWrapper = LambdaQueryWrapper<KUser>().eq(KUser::status, status).isNotNull(KUser::email).orderByDesc(KUser::id, KUser::age)
+        val queryWrapper = LambdaQueryWrapper<KUser>().eq(::userStatus, status).isNotNull(::userEmail).orderByDesc(::userId, ::userAge)
         return userMapper.selectList(queryWrapper)
     }
 
-    /** Lambda 更新包装直接构造 */
+    /** Lambda 更新包装直接构造（同上，SFunction 位置用 @JvmName 顶层函数引用） */
     fun updateByLambdaDirect(id: Int, age: Int): Int {
-        val updateWrapper = LambdaUpdateWrapper<KUser>().set(KUser::age, age).setSql("version = version + 1").eq(KUser::id, id)
+        val updateWrapper = LambdaUpdateWrapper<KUser>().set(::userAge, age).setSql("version = version + 1").eq(::userId, id)
         return userMapper.update(null, updateWrapper)
     }
 

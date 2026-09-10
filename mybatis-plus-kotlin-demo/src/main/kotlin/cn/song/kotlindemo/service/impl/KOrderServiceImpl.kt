@@ -12,4 +12,4 @@ import org.springframework.stereotype.Service
  * @author SongRenShuo
  */
 @Service
-class KOrderServiceImpl : ServiceImpl<KOrderMapper, KOrder>(), KOrderService
+open class KOrderServiceImpl : ServiceImpl<KOrderMapper, KOrder>(), KOrderService

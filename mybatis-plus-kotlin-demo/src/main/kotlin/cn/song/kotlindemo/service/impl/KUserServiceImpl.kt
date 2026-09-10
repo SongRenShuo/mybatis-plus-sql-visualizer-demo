@@ -12,4 +12,4 @@ import org.springframework.stereotype.Service
  * @author SongRenShuo
  */
 @Service
-class KUserServiceImpl : ServiceImpl<KUserMapper, KUser>(), KUserService
+open class KUserServiceImpl : ServiceImpl<KUserMapper, KUser>(), KUserService

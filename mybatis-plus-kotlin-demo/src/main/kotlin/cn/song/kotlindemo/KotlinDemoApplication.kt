@@ -11,7 +11,7 @@ import org.springframework.boot.runApplication
  */
 @SpringBootApplication
 @MapperScan("cn.song.kotlindemo.mapper")
-class KotlinDemoApplication
+open class KotlinDemoApplication
 
 fun main(args: Array<String>) {
     runApplication<KotlinDemoApplication>(*args)

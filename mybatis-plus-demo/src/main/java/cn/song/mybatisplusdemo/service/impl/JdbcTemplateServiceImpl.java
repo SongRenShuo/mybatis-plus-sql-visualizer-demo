@@ -604,4 +604,61 @@ public class JdbcTemplateServiceImpl implements JdbcTemplateService {
         log.info("[JdbcTemplate] UNION 联合查询 SQL: {}", sql);
         return namedParameterJdbcTemplate.queryForList(sql.toString(), paramMap);
     }
+
+    // ==================== 方法面补形态（2026-09-18） ====================
+
+    /**
+     * 21. queryForMap：单行 Map 查询
+     */
+    @Override
+    public Map<String, Object> queryForMapById(Integer id) {
+        String sql = "SELECT id, username, age, email, role_id, status FROM user WHERE id = ? AND deleted = 0";
+        log.info("[JdbcTemplate] queryForMap SQL: {}", sql);
+        return jdbcTemplate.queryForMap(sql, id);
+    }
+
+    /**
+     * 22. queryForRowSet：离线行集遍历（不落地实体/Map）
+     */
+    @Override
+    public List<String> queryForRowSetByStatus(Integer status) {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT username, email ");
+        sql.append("FROM user ");
+        sql.append("WHERE status = ? AND deleted = 0 ");
+        sql.append("ORDER BY id");
+
+        List<String> usernames = new ArrayList<>();
+        org.springframework.jdbc.support.rowset.SqlRowSet rowSet =
+                jdbcTemplate.queryForRowSet(sql.toString(), status);
+        while (rowSet.next()) {
+            usernames.add(rowSet.getString("username"));
+        }
+        log.info("[JdbcTemplate] queryForRowSet SQL: {}", sql);
+        return usernames;
+    }
+
+    /**
+     * 23. queryForStream：流式聚合统计
+     */
+    @Override
+    public Long queryForStreamCount(Integer minAge) {
+        String sql = "SELECT id FROM user WHERE age >= ? AND deleted = 0";
+        log.info("[JdbcTemplate] queryForStream SQL: {}", sql);
+        try (java.util.stream.Stream<Integer> stream =
+                     jdbcTemplate.queryForStream(sql, (rs, rowNum) -> rs.getInt("id"), minAge)) {
+            return stream.count();
+        }
+    }
+
+    /**
+     * 24. execute：通用执行（DDL 演示，表不存在时先删后建）
+     */
+    @Override
+    public boolean executeCreateTempTable() {
+        jdbcTemplate.execute("DROP TABLE IF EXISTS tmp_visualizer_probe");
+        jdbcTemplate.execute("CREATE TABLE tmp_visualizer_probe (" +
+                "id INT PRIMARY KEY AUTO_INCREMENT, probe_time DATETIME DEFAULT CURRENT_TIMESTAMP)");
+        return true;
+    }
 }

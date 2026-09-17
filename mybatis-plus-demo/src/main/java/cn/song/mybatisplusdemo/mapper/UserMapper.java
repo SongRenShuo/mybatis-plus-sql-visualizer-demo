@@ -164,4 +164,9 @@ public interface UserMapper extends BaseMapper<User> {
      * XML Map 参数查询（Map 作为唯一参数）
      */
     List<User> selectByMapParamXml(@Param("params") java.util.Map<String, Object> params);
+
+    /**
+     * 自定义注入器批量插入（MybatisPlusConfig#defaultSqlInjector 追加 InsertBatchSomeColumn）
+     */
+    int insertBatchSomeColumn(@Param("list") List<User> list);
 }

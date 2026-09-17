@@ -130,4 +130,26 @@ public interface JdbcTemplateService {
      * 20. UNION 联合查询
      */
     List<Map<String, Object>> unionQuery(String keyword);
+
+    // ==================== 方法面补形态（2026-09-18） ====================
+
+    /**
+     * 21. queryForMap：单行 Map 查询
+     */
+    Map<String, Object> queryForMapById(Integer id);
+
+    /**
+     * 22. queryForRowSet：离线行集遍历
+     */
+    List<String> queryForRowSetByStatus(Integer status);
+
+    /**
+     * 23. queryForStream：流式聚合
+     */
+    Long queryForStreamCount(Integer minAge);
+
+    /**
+     * 24. execute：通用执行（DDL 演示）
+     */
+    boolean executeCreateTempTable();
 }

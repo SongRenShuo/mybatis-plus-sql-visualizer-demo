@@ -245,4 +245,42 @@ public class JdbcTemplateController {
     public List<Map<String, Object>> unionQuery(@RequestParam(required = false) String keyword) {
         return jdbcTemplateService.unionQuery(keyword);
     }
+
+    // ==================== 方法面补形态（2026-09-18） ====================
+
+    /**
+     * 21. queryForMap：单行 Map 查询
+     * GET /jdbc/queryForMap/1
+     */
+    @GetMapping("/queryForMap/{id}")
+    public Map<String, Object> queryForMapById(@PathVariable Integer id) {
+        return jdbcTemplateService.queryForMapById(id);
+    }
+
+    /**
+     * 22. queryForRowSet：离线行集遍历
+     * GET /jdbc/queryForRowSet?status=1
+     */
+    @GetMapping("/queryForRowSet")
+    public List<String> queryForRowSetByStatus(@RequestParam(defaultValue = "1") Integer status) {
+        return jdbcTemplateService.queryForRowSetByStatus(status);
+    }
+
+    /**
+     * 23. queryForStream：流式聚合
+     * GET /jdbc/queryForStream?minAge=18
+     */
+    @GetMapping("/queryForStream")
+    public Long queryForStreamCount(@RequestParam(defaultValue = "18") Integer minAge) {
+        return jdbcTemplateService.queryForStreamCount(minAge);
+    }
+
+    /**
+     * 24. execute：通用执行 DDL
+     * POST /jdbc/executeDdl
+     */
+    @PostMapping("/executeDdl")
+    public boolean executeCreateTempTable() {
+        return jdbcTemplateService.executeCreateTempTable();
+    }
 }

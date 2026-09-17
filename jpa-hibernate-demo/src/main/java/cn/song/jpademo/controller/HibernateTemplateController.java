@@ -107,4 +107,22 @@ public class HibernateTemplateController {
     public WmsDockBooking crud(@RequestParam Long id, @RequestBody WmsDockBooking booking) {
         return hibernateTemplateDemoService.crudDemo(id, booking);
     }
+
+    /**
+     * 形态 14：bulkUpdate 批量 UPDATE
+     * POST /jpa/hib/bulkUpdate?oldStatus=P&newStatus=C
+     */
+    @PostMapping("/bulkUpdate")
+    public int bulkUpdate(@RequestParam String oldStatus, @RequestParam String newStatus) {
+        return hibernateTemplateDemoService.bulkUpdateStatus(oldStatus, newStatus);
+    }
+
+    /**
+     * 形态 15：findByNamedQueryAndNamedParam 命名查询
+     * GET /jpa/hib/namedQueryLegacy
+     */
+    @GetMapping("/namedQueryLegacy")
+    public List<?> findByNamedQueryLegacy() {
+        return hibernateTemplateDemoService.findByNamedQueryLegacy();
+    }
 }

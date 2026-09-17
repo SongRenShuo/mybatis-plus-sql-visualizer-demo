@@ -8,6 +8,8 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.NamedQuery;
+import javax.persistence.NamedQueries;
 import javax.persistence.Table;
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -22,6 +24,12 @@ import java.time.LocalDateTime;
 @EqualsAndHashCode(callSuper = false)
 @Entity
 @Table(name = "t_order")
+@NamedQueries({
+        @NamedQuery(name = "OrderEntity.findByOrderNoNamed",
+                query = "SELECT o FROM OrderEntity o WHERE o.orderNo = :orderNo"),
+        @NamedQuery(name = "OrderEntity.sumAmountByCustomerNamed",
+                query = "SELECT SUM(o.totalAmount) FROM OrderEntity o WHERE o.customerId = :customerId")
+})
 public class OrderEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;

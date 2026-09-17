@@ -82,4 +82,14 @@ public interface HibernateTemplateDemoService {
      * 形态 13：HibernateTemplate 直接 API 基础 CRUD（save/load/update/delete/merge）。
      */
     WmsDockBooking crudDemo(Long id, WmsDockBooking booking);
+
+    /**
+     * 形态 14：bulkUpdate（HQL 批量 UPDATE，位置参数）。
+     */
+    int bulkUpdateStatus(String oldStatus, String newStatus);
+
+    /**
+     * 形态 15：findByNamedQuery（hbm &lt;query&gt; 命名查询，位置参数）。
+     */
+    List<?> findByNamedQueryLegacy();
 }

@@ -225,4 +225,26 @@ public class HibernateTemplateDemoServiceImpl implements HibernateTemplateDemoSe
         hibernateTemplate.delete(merged);
         return merged;
     }
+
+    // ------------------------------------------------------------------
+    // 形态 14：bulkUpdate（HQL 批量 UPDATE，?1 起算的序号参数，Hibernate 5.2+ 拒绝裸 ?）
+    // ------------------------------------------------------------------
+
+    @Override
+    @Transactional(transactionManager = "hibernateTransactionManager")
+    public int bulkUpdateStatus(String oldStatus, String newStatus) {
+        return hibernateTemplate.bulkUpdate(
+                "update WmsDockBooking booking set booking.status = ?2 where booking.status = ?1",
+                oldStatus, newStatus);
+    }
+
+    // ------------------------------------------------------------------
+    // 形态 15：findByNamedQueryAndNamedParam（hbm <query> 命名查询 :threshold）
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<?> findByNamedQueryLegacy() {
+        return hibernateTemplate.findByNamedQueryAndNamedParam(
+                "LegacyItem.findLowStockHql", "threshold", 20);
+    }
 }

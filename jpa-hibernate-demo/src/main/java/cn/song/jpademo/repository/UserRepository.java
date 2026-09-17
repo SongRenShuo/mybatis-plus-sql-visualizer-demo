@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.query.Procedure;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,16 @@ import java.util.List;
  * @author SongRenShuo
  */
 public interface UserRepository extends JpaRepository<UserEntity, Long>, JpaSpecificationExecutor<UserEntity> {
+
+    // ------------------------------------------------------------------
+    // 存储过程（插件 @Procedure → CALL 渲染对齐用例，过程由 StoredProcedureConfig 启动时创建）
+    // ------------------------------------------------------------------
+
+    /**
+     * @Procedure：直接指向数据库过程 count_users_by_status(p_status IN, p_count OUT)
+     */
+    @Procedure(procedureName = "count_users_by_status")
+    Integer countUsersByStatusProcedure(@Param("p_status") Integer status);
 
     // ------------------------------------------------------------------
     // 派生查询（插件 PartTreeParser / DerivedQueryConverter 对齐用例）

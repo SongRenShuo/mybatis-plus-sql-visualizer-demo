@@ -2,7 +2,7 @@
 
 [Sql Visualizer](https://gitee.com/SongRenShuo/mybatis-plus-sql-visualizer) 插件的测试用例 Demo 集合项目。
 
-本仓库包含四个相互独立的 Spring Boot 子项目（Maven 多模块仓库，每个子项目可单独构建运行），
+本仓库包含五个相互独立的 Spring Boot 子项目（Maven 多模块仓库，每个子项目可单独构建运行），
 覆盖插件支持的各 ORM 主题与 SQL 来源形态，为插件提供真实、丰富的 SQL 预览 / SQL 生成测试场景：
 
 | 子项目 | 端口 / 数据库 | 主题 | 说明 |
@@ -11,6 +11,7 @@
 | [mybatis-plus-join-demo](mybatis-plus-join-demo) | 8082 / mpj_demo | MyBatis-Plus-Join（MP 3.5.2 + MPJ 1.5.8） | `MPJLambdaWrapper` 多表联查、聚合族、`selectCollection`、子查询条件族、`fill`、`updateJoin` / `deleteJoin`、`MPJQueryWrapper` 字符串链 |
 | [jpa-hibernate-demo](jpa-hibernate-demo) | 8083 / jpa_demo | JPA + Hibernate（Spring Boot 2.6.3） | Spring Data JPA 派生查询、`@Query` JPQL、`CriteriaQuery`、Hibernate HQL、`HibernateTemplate` / `HibernateDaoSupport` 通用 DAO、hbm.xml 遗留实体、JPA 写路径（save / `@Modifying` / `CriteriaUpdate`·`Delete` / Specification / QBE / 锁读） |
 | [mybatis-plus-kotlin-demo](mybatis-plus-kotlin-demo) | 8084 / kotlin_demo | MyBatis-Plus Kotlin（1.9.25 + MP 3.5.7） | `ktQuery()` / `ktUpdate()` 扩展链、Kotlin 直接构造 Wrapper（插件 KtWrapperDetector 语料） |
+| [multi-orm-demo](multi-orm-demo) | 8085 / orm_demo | 其它 ORM 四家（插件 M44 识别器） | Querydsl（Q 类表达式树）、MyBatis Dynamic SQL（DSL 构建）、xbatis（Chain 链）、Easy-Query（proxy 链） |
 
 ## 环境要求
 
@@ -151,4 +152,62 @@ src/main/resources/
 
 > 版本说明：本模块随 2026-09-07 升级使用 MP 3.5.7。勘误：`LambdaDeleteWrapper` 类在 MP 任何版本均不存在（插件构造名映射为防御性条目），条件删除用 remove(updateWrapper) 惯用法；MPJ Kotlin 扩展插件侧为 🟡 未立项，本模块不含 MPJ 场景。MP 3.5.6+ orderBy 族 Kotlin 变长重载与单列调用二义，语料统一显式多列排序。
 
-> 注意：四个子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作仓库说明占位。
+## 场景覆盖清单增补（2026-09-18 对照插件 2026.9.18-beta.4 能力全方位补齐）
+
+开发计划见《[20260918-0415-插件测试语料全方位补齐-开发计划](docs/开发计划/20260918-0415-插件测试语料全方位补齐-开发计划.md)》。
+
+### mybatis-plus-demo 增补
+
+| 场景 | 位置 |
+|------|------|
+| Wrapper 定位器高级形态：跨方法工厂链（私有工厂方法返回 wrapper、调用方续链）、helper 方法就地修改 wrapper、`clear()` 截断重建、if/else 互斥分支（插件只取 then）、字符串版 `wrapper.lambda()` 转换、分步续链（new 后逐句挂条件） | `WrapperAdvancedCoverageServiceImpl` |
+| `select(Class, Predicate)` 字段谓词过滤、`allEq(Map, boolean)`、实体驱动 SET 双形态（update(entity, wrapper) 与 `new UpdateWrapper<>(entity)`）、`notLike/notLikeLeft/notLikeRight` | 同上 |
+| `insertBatchSomeColumn` 自定义 SQL 注入器（`MybatisPlusConfig#defaultSqlInjector` 追加，javap 核实 3.5.7 为三参 `getMethodList(Configuration, Class, TableInfo)`） | `MybatisPlusConfig` + `UserMapper` + `WrapperAdvancedCoverageServiceImpl#batchInsertSome` |
+| JdbcTemplate 方法面补形态：`queryForMap` / `queryForRowSet` / `queryForStream` / `execute` DDL | `JdbcTemplateServiceImpl`（21~24 号场景）。Spring 5.3 的 JdbcTemplate 无 `queryForLong/queryForInt/delete/insert` 方法，javap 实证不写 |
+| 负例边界语料：注释内链文本、字符串内链文本、撞名 qualifier（自定义 FakeWrappers.lambdaQuery）、泛型实参位、lambda 参数位调用、非 Repository 接口的 findByXxx——IDEA 打开应零 gutter | `common/BoundaryNegativeCases` + `common/FakeUserRepository` |
+
+### mybatis-plus-join-demo 增补
+
+| 场景 | 位置 |
+|------|------|
+| `MPJWrappers.lambdaJoin()/queryJoin()` 工厂链（vs JoinWrappers）；`JoinWrappers.update()` 工厂 + `setIncrBy` + `set(col, null)` + `updateAndNull` 终结 | `MpjLocatorCoverageServiceImpl` |
+| Chain 终结点：`first(Class)` / `one(Class)` / `count()` / `mapOne` / `mapFirst` / `mapList` / `mapPage` | 同上 |
+| 构造别名 `new MPJLambdaWrapper<>(UserDO.class, "u")`；字符串 join `{0}` 参数绑定（`leftJoin(String, Object...)`） | 同上 |
+
+### jpa-hibernate-demo 增补
+
+| 场景 | 位置 |
+|------|------|
+| `@Procedure` 存储过程（过程由 `StoredProcedureConfig` 经 JdbcTemplate 幂等创建，绕开 schema.sql 分号切分限制；注解位于 `org.springframework.data.jpa.repository.query.Procedure`） | `StoredProcedureConfig` + `UserRepository#countUsersByStatusProcedure` + `JpaDeepCoverageServiceImpl#procedureCountByStatus` |
+| Criteria 深水区：`cb.exists` 子查询、`coalesce/concat/length` 表达式函数、`fetch` join | `JpaDeepCoverageServiceImpl`（/jpa/deep/*） |
+| Specification 组合器 `where/and/or/not`；`@NamedQueries` 容器注解（OrderEntity） | 同上 + `OrderEntity` |
+| HibernateTemplate 补形态：`bulkUpdate`（?1 起算序号参数）、`findByNamedQueryAndNamedParam` | `HibernateTemplateDemoServiceImpl`（形态 14/15）。Spring 5.3 已删 `executeFind`，javap 实证不写 |
+
+### multi-orm-demo（新增第五子项目，Boot 2.6.3 + JDK 1.8，端口 8085 / 库 orm_demo）
+
+插件 M44「其它 ORM 第一批」四家识别器的专用语料模块，共用 orm_member 表（同一 JPA 实体三用：@Entity / Querydsl Q 类 / Easy-Query proxy）：
+
+| ORM | 场景 | 位置 |
+|------|------|------|
+| Querydsl 5.0.0（javax 线） | Q 类表达式树 selectFrom/where/orderBy/fetch、BooleanBuilder、聚合 groupBy、JPAUpdateClause / JPADeleteClause | `QuerydslServiceImpl`（/orm/querydsl/*） |
+| MyBatis Dynamic SQL 1.5.2 | SqlTable/SqlColumn 常量、SelectDSL/UpdateDSL/DeleteDSL、`render(SPRING_NAMED_PARAMETER)` 后经 NamedParameterJdbcTemplate 执行 | `MdsServiceImpl`（/orm/mds/*） |
+| xbatis 1.10.9（原 mybatis-mp） | `QueryChain.of(mapper)`/`of(mapper, entityClass)`、`gte/lte`、`like(LikeMode, ...)`、`andNested` 嵌套组、UpdateChain/DeleteChain | `XbatisServiceImpl`（/orm/xbatis/*） |
+| Easy-Query 3.2.16 | `easyEntityQuery.queryable(X.class).where(o -> o.xxx().eq(...))` proxy 链、语句块 lambda 多条件、insertable / updatable(entity)+setColumns / deletable | `EasyQueryServiceImpl`（/orm/easy/*） |
+
+落地勘误（javap + 实跑实证）：
+1. easy-query 的 sql-processor 注解处理器只监听 `@EntityProxy`（不读 @Table 触发生成），且与 Lombok 同轮处理会因 getter 未生成而静默跳过——本模块实体弃用 Lombok 显式写 getter/setter；主键须 `@Column(primaryKey = true)` 否则实体更新报 not found primary key；谓词 eq/ge 返回 void，多条件用语句块 lambda 顺序语句。
+2. 生成物为 `entity/proxy/MemberEntityProxy`（非 Table 后缀），实体需 `implements ProxyEntityAvailable<实体, 生成proxy>`。
+3. xbatis `QueryChain.create()` 无实体上下文，count 会抛 you need specify entityType，count 场景用 `of(mapper, entityClass)`。
+4. MDS `render(SPRING_NAMED_PARAMETER)` 产出 `:p1` 命名参数，必须经 NamedParameterJdbcTemplate 执行（JdbcTemplate 位置参数会 Parameter index out of range）。
+
+### 版本墙（javap 本地 jar 实证，不写语料）
+
+| API | 要求 | demo 基线 |
+|------|------|----------|
+| `applyFunc` | MP 3.5.9+（3.5.7 Compare/Func/Join/Nested 均无） | mp-demo 3.5.7 |
+| `eqOrIsNull` | MP 3.5.17+ | mp-demo 3.5.7 |
+| `MPJLambdaQueryWrapper` / `pageByMain` / `around` | MPJ 1.5.9+（join-demo 锁 1.5.8） | mpj-demo 1.5.8 |
+| `Specification.allOf/anyOf` | Spring Data JPA 3.x | jpa-demo 2.6.3 |
+| `HibernateTemplate.executeFind` | Spring 4.x（5.3 已删） | jpa-demo 5.3 |
+
+> 注意：四个子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作仓库说明占位；新增 `multi-orm-demo` 后为五个子项目。

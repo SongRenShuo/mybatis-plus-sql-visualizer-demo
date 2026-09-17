@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.6.3</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>cn.song</groupId>
+    <artifactId>multi-orm-demo</artifactId>
+    <version>1.0.0</version>
+    <name>multi-orm-demo</name>
+    <description>多 ORM SQL 可视化插件测试 Demo（Querydsl / MyBatis Dynamic SQL / xbatis / Easy-Query）</description>
+
+    <properties>
+        <java.version>1.8</java.version>
+        <querydsl.version>5.0.0</querydsl.version>
+        <mybatis-dynamic-sql.version>1.5.2</mybatis-dynamic-sql.version>
+        <xbatis.version>1.10.9</xbatis.version>
+        <easy-query.version>3.2.16</easy-query.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!--Querydsl-JPA 走 JPA/Hibernate 基础设施；hbm 校验由 Hibernate 完成-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!--MDS 渲染出的 SQL 经 JdbcTemplate 执行-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+        </dependency>
+
+        <!--====================== 四 ORM ======================-->
+
+        <!--Querydsl：JPAQueryFactory + APT 生成 Q 类（javax 线 5.0.0）-->
+        <dependency>
+            <groupId>com.querydsl</groupId>
+            <artifactId>querydsl-jpa</artifactId>
+            <version>${querydsl.version}</version>
+        </dependency>
+
+        <!--MyBatis Dynamic SQL：纯 SQL 语句构建器（SelectDSL/UpdateDSL/DeleteDSL）-->
+        <dependency>
+            <groupId>org.mybatis.dynamic-sql</groupId>
+            <artifactId>mybatis-dynamic-sql</artifactId>
+            <version>${mybatis-dynamic-sql.version}</version>
+        </dependency>
+
+        <!--xbatis（原 mybatis-mp）：QueryChain/UpdateChain/DeleteChain-->
+        <dependency>
+            <groupId>cn.xbatis</groupId>
+            <artifactId>xbatis-spring-boot-starter</artifactId>
+            <version>${xbatis.version}</version>
+        </dependency>
+
+        <!--Easy-Query：easyEntityQuery proxy 风格（starter 自动装配 EasyQueryClient/EasyEntityQuery，
+            proxy 类由 sql-processor APT 生成）-->
+        <dependency>
+            <groupId>com.easy-query</groupId>
+            <artifactId>sql-springboot-starter</artifactId>
+            <version>${easy-query.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!--两个注解处理器：Querydsl 生成 Q 类（jpa classifier 自带依赖）、
+                        Easy-Query 生成实体 proxy（ProxyGenerateProcessor）。
+                        注意本模块实体不用 Lombok：sql-processor 与 Lombok 同轮处理时
+                        会因 getter 未生成而静默跳过 proxy 生成-->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>com.querydsl</groupId>
+                            <artifactId>querydsl-apt</artifactId>
+                            <version>${querydsl.version}</version>
+                            <classifier>jpa</classifier>
+                        </path>
+                        <!--JPAAnnotationProcessor 处理期需加载 @Entity 注解类，
+                            annotationProcessorPaths 为隔离 classpath，须显式带上 persistence-api-->
+                        <path>
+                            <groupId>javax.persistence</groupId>
+                            <artifactId>javax.persistence-api</artifactId>
+                            <version>2.2</version>
+                        </path>
+                        <path>
+                            <groupId>com.easy-query</groupId>
+                            <artifactId>sql-processor</artifactId>
+                            <version>${easy-query.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

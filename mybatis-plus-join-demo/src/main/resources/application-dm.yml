@@ -1,0 +1,9 @@
+# 达梦 DM8 环境：IDEA Maven 面板勾选 dm profile（或 mvnd -P dm）后生效
+# 端口、MP/MPJ 配置沿用 application.yml 基线，此处只覆盖数据源
+# 建用户与建表脚本见 src/main/resources/db/schema-dm.sql
+spring:
+  datasource:
+    driver-class-name: dm.jdbc.driver.DmDriver
+    url: jdbc:dm://114.66.55.245:20096?schema=MPJ_DEMO
+    username: MPJ_DEMO
+    password: Mpj_demo_2026

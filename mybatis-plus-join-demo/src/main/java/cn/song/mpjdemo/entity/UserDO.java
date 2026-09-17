@@ -19,7 +19,8 @@ import java.util.List;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
-@TableName("user")
+// user 在达梦是保留字，统一带双引号引用；MySQL 侧由 jdbc url 的 sql_mode=ANSI_QUOTES 保证双引号同样按标识符解析
+@TableName("\"user\"")
 public class UserDO implements Serializable {
 
     private static final long serialVersionUID = 1L;

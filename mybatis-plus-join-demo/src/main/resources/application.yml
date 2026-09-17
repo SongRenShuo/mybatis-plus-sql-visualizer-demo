@@ -4,9 +4,13 @@ server:
 spring:
   application:
     name: mybatis-plus-join-demo
+  # 由 Maven profile 注入：默认 mysql，IDEA Maven 面板勾选 dm 切达梦（application-dm.yml）
+  profiles:
+    active: @profiles.active@
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/mpj_demo?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    # sql_mode=ANSI_QUOTES：双引号按标识符解析，与达梦侧 "user" 写法共用同一实体标注
+    url: jdbc:mysql://localhost:3306/mpj_demo?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&sessionVariables=sql_mode=ANSI_QUOTES
     username: root
     password: root
 

@@ -2,7 +2,7 @@
 
 [Sql Visualizer](https://gitee.com/SongRenShuo/mybatis-plus-sql-visualizer) 插件的测试用例 Demo 集合项目。
 
-本仓库包含五个相互独立的 Spring Boot 子项目（Maven 多模块仓库，每个子项目可单独构建运行），
+本仓库包含六个相互独立的 Spring Boot 子项目（Maven 多模块仓库，每个子项目可单独构建运行），
 覆盖插件支持的各 ORM 主题与 SQL 来源形态，为插件提供真实、丰富的 SQL 预览 / SQL 生成测试场景：
 
 | 子项目 | 端口 / 数据库 | 主题 | 说明 |
@@ -12,6 +12,7 @@
 | [jpa-hibernate-demo](jpa-hibernate-demo) | 8083 / jpa_demo | JPA + Hibernate（Spring Boot 2.6.3） | Spring Data JPA 派生查询、`@Query` JPQL、`CriteriaQuery`、Hibernate HQL、`HibernateTemplate` / `HibernateDaoSupport` 通用 DAO、hbm.xml 遗留实体、JPA 写路径（save / `@Modifying` / `CriteriaUpdate`·`Delete` / Specification / QBE / 锁读） |
 | [mybatis-plus-kotlin-demo](mybatis-plus-kotlin-demo) | 8084 / kotlin_demo | MyBatis-Plus Kotlin（1.9.25 + MP 3.5.7） | `ktQuery()` / `ktUpdate()` 扩展链、Kotlin 直接构造 Wrapper（插件 KtWrapperDetector 语料） |
 | [multi-orm-demo](multi-orm-demo) | 8085 / orm_demo | 其它 ORM 四家（插件 M44 识别器） | Querydsl（Q 类表达式树）、MyBatis Dynamic SQL（DSL 构建）、xbatis（Chain 链）、Easy-Query（proxy 链） |
+| [selfdev-framework-demo](selfdev-framework-demo) | 8086 / selfdev_demo | 自研框架帧过滤前缀（设置项专用语料） | 模拟不经 MyBatis 的自研数据访问引擎（`com.corp.engine` / `com.corp.meta`），27 端点覆盖 12 种调用形态 × 4 类查询/写形态 × 3 档委托深度，用于验证「源码捕获帧过滤前缀」登记前后的跳转落点差异 |
 
 ## 环境要求
 
@@ -30,20 +31,25 @@ cd mybatis-plus-demo && mvn clean compile
 ```
 
 > 根目录 `pom.xml` 为**聚合 POM**（packaging=pom，仅含 `<modules>`），作用是让 IDEA 能以多模块形式打开整个目录、以及提供统一的构建入口。
-> 四个子项目是**独立 Maven 工程**：各自以 `spring-boot-starter-parent` 作为 parent，互不关联，也不继承根 pom 的任何依赖或属性。
+> 各子项目是**独立 Maven 工程**：各自以 `spring-boot-starter-parent` 作为 parent，互不关联，也不继承根 pom 的任何依赖或属性。
 
 ## 数据库初始化
 
-运行（而非仅代码解析）时需要 MySQL，四个子项目各用独立库，建表脚本随仓库维护，与实体类逐列对齐：
+运行（而非仅代码解析）时需要 MySQL，各子项目用独立库，建表脚本随仓库维护，与实体类逐列对齐：
 
-| 数据库 | 脚本 |
-|--------|------|
-| mp_demo | `mybatis-plus-demo/src/main/resources/db/schema.sql` |
-| mpj_demo | `mybatis-plus-join-demo/src/main/resources/db/schema.sql` |
-| jpa_demo | `jpa-hibernate-demo/src/main/resources/db/schema.sql` |
-| kotlin_demo | `mybatis-plus-kotlin-demo/src/main/resources/db/schema.sql` |
+| 数据库 | 脚本 | 初始化方式 |
+|--------|------|------|
+| mp_demo | `mybatis-plus-demo/src/main/resources/db/schema.sql` | 手工执行 |
+| mpj_demo | `mybatis-plus-join-demo/src/main/resources/db/schema.sql` | 手工执行 |
+| jpa_demo | `jpa-hibernate-demo/src/main/resources/db/schema.sql` | 手工执行 |
+| kotlin_demo | `mybatis-plus-kotlin-demo/src/main/resources/db/schema.sql` | 手工执行 |
+| orm_demo | `multi-orm-demo/src/main/resources/db/schema.sql` | 手工执行 |
+| selfdev_demo | `selfdev-framework-demo/src/main/resources/db/schema.sql` | **自动**（`spring.sql.init`，每次启动重建） |
 
 脚本可重复执行（自带 DROP TABLE），含初始化数据；实体新增表时须同步维护对应脚本。
+
+> `selfdev-framework-demo` 以「起服务即可 curl」为目标启用了自动初始化，且显式声明 `spring.sql.init.encoding: UTF-8`——
+> 不声明时按平台默认字符集读取脚本，Windows 下（GBK）会把脚本里的中文写成乱码。
 
 ## 目录结构约定（参考 easy-code-demo）
 
@@ -210,4 +216,36 @@ src/main/resources/
 | `Specification.allOf/anyOf` | Spring Data JPA 3.x | jpa-demo 2.6.3 |
 | `HibernateTemplate.executeFind` | Spring 4.x（5.3 已删） | jpa-demo 5.3 |
 
-> 注意：四个子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作仓库说明占位；新增 `multi-orm-demo` 后为五个子项目。
+> 注意：各子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作聚合入口；新增 `selfdev-framework-demo` 后为六个子项目。
+
+## 场景覆盖清单增补（2026-09-22 自研框架帧过滤前缀专用语料）
+
+开发计划见《[20260922-0832-自研框架帧过滤前缀测试子项目-开发计划](docs/开发计划/20260922-0832-自研框架帧过滤前缀测试子项目-开发计划.md)》。
+
+### selfdev-framework-demo（新增第六子项目，Boot 2.6.3 + JDK 1.8，端口 8086 / 库 selfdev_demo）
+
+插件设置项**「源码捕获帧过滤前缀」**的专用语料。模拟公司自研数据访问框架——不经 MyBatis、无拦截点、
+SQL 只在运行期由 agent 增强捕获可见，正是该设置项要解决的场景。
+
+| 维度 | 覆盖 |
+|------|------|
+| 模拟框架 | `com.corp.engine`（静态门面 `DataUpdateTool` / Bean 门面 `DataQueryTool` / 链式 `DataQuery` / 编排 `LocalDbService` / 执行 `DmlRepository` / 代理工厂）、`com.corp.meta`（条件树 `FilterExpression`+`Q`、渲染 `SqlRenderer`、元数据 `MetaRegistry`、分页 `PaginSupport`） |
+| A 调用形态（12） | 静态直调 / Bean 门面 / 链式终结 / lambda 回调 / 匿名内部类 / JDK 代理 / 反射 / 业务包装壳 / `CompletableFuture` 异线程 / 命名线程池 / 循环批量 / 单方法两次调用 |
+| B 委托深度（4） | 浅层直连 / 三层委托 / 跨服务协作 / 业务包内委托壳（负例） |
+| C 查询形态（8） | 分页 / 分页+三层委托 / 计数 / 分组聚合 / 两表 JOIN / IN 条件 / OR 嵌套条件树 / 排序限制 |
+| D 写路径（3） | 按条件更新 / 按条件删除 / 循环更新 |
+
+**实测结论（插桩实证，非推断）**：
+
+| 场景 | 登记前缀 | 实测主位置 |
+|---|---|---|
+| 普通查询 | 无 | `com.corp.engine.DmlRepository#query`（缺陷现象：落框架方法） |
+| 普通查询 | `com.corp.engine.` | 业务帧（正确） |
+| 分页查询 | `com.corp.engine.` | `com.corp.meta.PaginSupport#wrapAndQuery`（**仍不对**） |
+| 分页查询 | `com.corp.engine.` + `com.corp.meta.` | 业务帧（正确） |
+| 三层委托 | `com.corp.engine.` | 最内层业务帧 `DepthInnerServiceImpl#innerQuery` |
+| 三层委托 | 再加 `cn.song.selfdevdemo.` | **候选池为空 → 无位置**（误用业务包导致跳转能力消失） |
+
+三条要点：**前缀须覆盖整条引擎链**（分页用例最深层在 `com.corp.meta`，必须两行都填）；
+**落点是最深业务帧**（外层调用者留在候选列）；**切勿登记业务包**（会把真实业务帧一并跳过）。
+完整配方与端点清单见模块 [README](selfdev-framework-demo/README.md)。

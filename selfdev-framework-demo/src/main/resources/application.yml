@@ -1,0 +1,27 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: selfdev-framework-demo
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # createDatabaseIfNotExist：库不存在时由驱动自建，降低「起服务即可 curl」的环境要求
+    url: jdbc:mysql://localhost:3306/selfdev_demo?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+  sql:
+    init:
+      # 本模块以「起服务即可 curl」为目标：schema.sql 自带 DROP TABLE，每次启动重建（可重复执行）
+      mode: always
+      schema-locations: classpath:db/schema.sql
+      # 不显式指定时按平台默认字符集读取脚本——Windows 下为 GBK，会把脚本里的中文写成乱码
+      encoding: UTF-8
+      continue-on-error: false
+
+# 模拟自研引擎的 SQL 落到控制台，便于与插件面板对照（引擎自身不打印 SQL，
+# 这里靠 Spring 的 JdbcTemplate DEBUG 日志暴露真正执行的语句）
+logging:
+  level:
+    org.springframework.jdbc.core.JdbcTemplate: debug
+    org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate: debug

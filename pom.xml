@@ -23,5 +23,6 @@
         <module>jpa-hibernate-demo</module>
         <module>mybatis-plus-kotlin-demo</module>
         <module>multi-orm-demo</module>
+        <module>selfdev-framework-demo</module>
     </modules>
 </project>

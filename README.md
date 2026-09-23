@@ -277,7 +277,7 @@ SQL 只在运行期由 agent 增强捕获可见，正是该设置项要解决的
 | **机制 A（未修）**：业务代码打进 JAR 运行时，L1 来源过滤把它判成第三方帧，主位置沿栈上顶到调用方 Service——不登记前缀就已发生、登记前缀也救不回（前缀只有「跳过」语义，没有「提升为业务帧」的反向语义） | 28（目录态）落 `util/PlanTreeQueryBuilder.java:52` / `:67` 两处调用行，正确；29（JAR 态、同构代码）P0/P1/P2 三档均落 `SourceCaptureToolSiteServiceImpl.java:66` |
 | **机制 B′（未修，用户现场主因）**：判定缓存的「身份在场」只比 `class#method`，而**先直发 SQL 的那个 Service 方法是其后每条栈的祖先帧、必然在场** ⇒ 主位置被浅帧钉住，行号按当前栈现算＝「调用工具类」那一行 | 34 号（业务在目录 + 内核在 JAR）P0 档：SQL① 落 `...ServiceImpl.java:129` 正确，SQL② 落 `:132`＝调用工具类行，真执行点 `util/PlanTreeQueryBuilder.java:96` 只在候选列第 3 项；**同用例登记 `com.corp.platform.` 后落 `:96` 正确** ⇒ 补登记平台引擎包名是用户侧可立即用的缓解 |
 | **真执行点其实躺在候选列里**，但 IDE 侧 `EntryJumpResolver` 只在主位置解析失败时才查候选，回退链被短路 | 29 的候选首项即 `com/corp/shared/util/PlanTreeQueryBuilder.java:38`（SQL② 为 `:53`）；34 号 SQL② 的候选含 `util/PlanTreeQueryBuilder.java:96` |
-| **同身份行号互相冻结这一子面已在 v2026.9.23 根治**（T-AgentSourceLocateStale T-01：只缓存判定 + 行号按当前栈现算 + 身份在场校验）；E30/31 与 28 的两处调用点转为该修复的**回归护栏** | 30→31 各落 `…ServiceImpl.java:82` / `:94`；32→33 各落 `util/PlanTreeQueryBuilder.java:106` / `:112`。**旧版对照**（≤ v2026.9.18 的整帧缓存）：31 会跳到 30 的 `:74`、28 的 SQL② 会冻在 SQL① 的 `:52` |
+| **同身份行号互相冻结这一子面已在 v2026.9.23 根治**（T-AgentSourceLocateStale T-01：只缓存判定 + 行号按当前栈现算 + 身份在场校验）；E30/31 与 28 的两处调用点转为该修复的**回归护栏** | 30→31 各落 `…ServiceImpl.java:82` / `:94`；32→33 各落 `util/PlanTreeQueryBuilder.java:106` / `:112`。**旧版对照**（≤ v2026.9.18 的整帧缓存，行号取当时编译产物）：31 会被跳到 **30 的调用行**、28 的 SQL② 会被冻在 **SQL① 的行号** |
 
 > 真机核对落点前先确认插件版本：串位那半部分是已修的旧缺陷，别当新问题查。
 > 另：`logLevel` 是 agent 的启动参数（插件注入时固定 `logLevel=warn`，无设置项、无覆盖口），

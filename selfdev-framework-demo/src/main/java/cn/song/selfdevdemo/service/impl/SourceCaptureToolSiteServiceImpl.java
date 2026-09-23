@@ -38,8 +38,9 @@ public class SourceCaptureToolSiteServiceImpl implements SourceCaptureToolSiteSe
      * {@code PlanTreeQueryBuilder#buildTreeByOwner} 内的两处调用行，
      * 而不是下面这一行「调用构建器」的位置。
      *
-     * <p>已知残面：两条 SQL 的「首个非框架帧」同为该构建器方法（key 只到 {@code class#method}，
-     * 不含行号），故第二条的落点可能被整帧缓存冻结成第一条的行号——同文件内即可观察。
+     * <p>同一方法内两处调用点的「首个非框架帧」同为该构建器方法（key 只到 {@code class#method}、不含行号）——
+     * agent 早期把结果帧整帧入缓存时，SQL② 会被冻在 SQL① 的行号上；v2026.9.23 起行号按当前栈现算，
+     * 两处调用点各自落位（实测行号见模块 README E 组实测表），本用例兼作该修复的回归位。
      */
     @Override
     public List<Map<String, Object>> directoryBuilder(String owner) {
@@ -63,11 +64,15 @@ public class SourceCaptureToolSiteServiceImpl implements SourceCaptureToolSiteSe
     }
 
     /**
-     * 30. JAR 态共用入口·先触发者（与 31 成对，须按 30 → 31 顺序触发）。
+     * 30. JAR 态共用入口·先触发者（与 31 成对，须按 30 → 31 顺序、同进程内连续触发）。
      *
      * <p>30 与 31 调的是同一个 JAR 构建器方法 {@code PlanTreeQueryBuilder#loadPlansByIds}，
-     * 栈形同构 ⇒ 「首个非框架帧」的 {@code class#method} 相同 ⇒ 共用一份整帧缓存。
-     * 本方法先执行，其调用行会被冻结进缓存。
+     * 两条链在该方法处的栈形同构 ⇒ 「首个非框架帧」的 {@code class#method} 相同 ⇒ 命中同一份缓存。
+     *
+     * <p><b>这一对的定位＝缓存串用的回归护栏</b>：agent 早期把结果帧整帧入缓存，实测 31 会跳到
+     * 30 的调用行（跨文件串位）；v2026.9.23 的 T-AgentSourceLocateStale T-01 改为
+     * 「只缓存判定 + 行号按当前栈现算 + 身份在场校验」后，实测两条各落自己的调用行——
+     * 本对用例用于防止该修复回退。
      */
     @Override
     public List<Map<String, Object>> jarSharedKeyFirst(List<String> planIds) {
@@ -75,24 +80,28 @@ public class SourceCaptureToolSiteServiceImpl implements SourceCaptureToolSiteSe
     }
 
     /**
-     * 31. JAR 态共用入口·后触发者（<b>跨文件串位</b>的观测位）。
+     * 31. JAR 态共用入口·后触发者。
      *
-     * <p>先触发 30 再触发本端点：本端点执行的 SQL 的跳转位置预期仍是
-     * <b>30 的调用行</b>（另一文件、另一方法），而不是下面这一行——
-     * 与用户反馈的「跳到别处的调用方」同形，且与帧来源无关，纯粹是 key 粒度问题。
+     * <p>串用维度见 30 号（当前版本已根治，此处为回归位）。<b>本用例同时是机制 A 的复现位</b>：
+     * 期望落点是 JAR 里 {@code PlanTreeQueryBuilder#loadPlansByIds} 发 SQL 的那一行，
+     * 实测停在下面这一行（调用方 Service）——JAR 帧被 L1 判为第三方，主位置沿栈上顶到第一个目录帧。
      */
     @Override
     public List<Map<String, Object>> jarSharedKeySecond(List<String> planIds) {
         return com.corp.shared.util.PlanTreeQueryBuilder.loadPlansByIds(planIds);
     }
 
-    /** 32. 30 的目录态对照：共用入口在目录里，合流仍应发生（证明合流与帧来源无关）。 */
+    /** 32. 30 的目录态对照：同一构建器方法被两个调用方共用，但帧来自 {@code target/classes}。 */
     @Override
     public List<Map<String, Object>> directorySharedKeyFirst(List<String> planIds) {
         return PlanTreeQueryBuilder.loadPlansByIds(planIds);
     }
 
-    /** 33. 31 的目录态对照：先 32 后 33，观察 33 是否落到 32 的调用行。 */
+    /**
+     * 33. 31 的目录态对照：登记 {@code cn.song.selfdevdemo.kernel.} 后，
+     * 落点应为构建器自身的两处调用行（<b>不是</b>本 Service 行）——与 31 对照即可看出
+     * 「同为共用入口，目录态落构建器、JAR 态落调用方」的差别只来自打包形态。
+     */
     @Override
     public List<Map<String, Object>> directorySharedKeySecond(List<String> planIds) {
         return PlanTreeQueryBuilder.loadPlansByIds(planIds);

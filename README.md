@@ -269,13 +269,18 @@ SQL 只在运行期由 agent 增强捕获可见，正是该设置项要解决的
 | 帧来源 | 目录 `target/classes` / 依赖 JAR | 同一对类写两遍：`com.corp.platform.SqlKernel` ↔ `cn.song.selfdevdemo.kernel.PlanTreeKernel`；`com.corp.shared.util.PlanTreeQueryBuilder` ↔ `cn.song.selfdevdemo.util.PlanTreeQueryBuilder`（逐行同构，SQL 文本一致） |
 | 调用方是否唯一 | 单 Service / 两个 Service 共用同一构建器方法 | 28·29 单调用方；30→31、32→33 成对触发 |
 
-实测（在 stub JDBC 执行边界取真实栈、逐字套用 `StackLocator` 三层判定与整帧缓存，非推断）：
+实测（在 stub JDBC 执行边界取真实栈、逐字套用 agent `StackLocator` **当前版本 v2026.9.23** 的三层判定与判定缓存，非推断）：
 
 | 结论 | 证据 |
 |---|---|
-| **业务代码打进 JAR 运行时，L1 来源过滤把它判成第三方帧，主位置沿栈上顶到调用方 Service**——用户现象复现，且**登记前缀无法挽回**（前缀只有「跳过」语义，没有「提升为业务帧」的反向语义） | 28（目录态）落 `util/PlanTreeQueryBuilder.java:52` 正确；29（JAR 态、同构代码）落 `SourceCaptureToolSiteServiceImpl.java:62`；P2 档把 JAR 业务包也登记后落点不变 |
-| **真执行点其实躺在候选列里**，但 IDE 侧 `EntryJumpResolver` 只在主位置解析失败时才查候选，回退链被短路 | 29 的候选首项即 `com/corp/shared/util/PlanTreeQueryBuilder.java:38` |
-| **整帧缓存 key 只到 `class#method`（不含行号/不含完整链）⇒ 跨调用方串位**，与帧来源无关，目录态同样命中 | 30→31：31 落到 30 的 `…ServiceImpl.java:74`（自身 `:86`）；32→33 目录态对照同形；28 的两处调用点之间也已串位（SQL② 被冻在 SQL① 的 `:52`，自身应为 `:67`） |
+| **业务代码打进 JAR 运行时，L1 来源过滤把它判成第三方帧，主位置沿栈上顶到调用方 Service**——用户现象复现，**当前仍未修**，且不登记前缀就已发生、登记前缀也救不回（前缀只有「跳过」语义，没有「提升为业务帧」的反向语义） | 28（目录态）落 `util/PlanTreeQueryBuilder.java:52` / `:67` 两处调用行，正确；29（JAR 态、同构代码）P0/P1/P2 三档均落 `SourceCaptureToolSiteServiceImpl.java:63` |
+| **真执行点其实躺在候选列里**，但 IDE 侧 `EntryJumpResolver` 只在主位置解析失败时才查候选，回退链被短路 | 29 的候选首项即 `com/corp/shared/util/PlanTreeQueryBuilder.java:38`（SQL② 为 `:53`） |
+| **跨调用方/跨调用点的行号串用已在 v2026.9.23 根治**（T-AgentSourceLocateStale T-01：只缓存判定 + 行号按当前栈现算 + 身份在场校验）；E30/31 与 28 的两处调用点转为该修复的**回归护栏** | 30→31 各落 `…ServiceImpl.java:79` / `:91`；32→33 各落 `util/PlanTreeQueryBuilder.java:94` / `:100`。**旧版对照**（≤ v2026.9.18 的整帧缓存）：31 会跳到 30 的 `:74`、28 的 SQL② 会冻在 SQL① 的 `:52` |
+
+> 真机核对落点前先确认插件版本：串位那半部分是已修的旧缺陷，别当新问题查。
+> 另：`logLevel` 是 agent 的启动参数（插件注入时固定 `logLevel=warn`，无设置项、无覆盖口），
+> info 档的 pool 打点在真机不可达；当前版本改用与档位无关的一次性摘要
+> `[T-AgentSourceLocateStale] 入口键非业务帧…`，在应用控制台 grep 即可。
 
 > 走查 JAR 档位需绕开 IDEA 的 Maven workspace 解析（它会把兄弟模块还原成目录形态），
 > 配方见 [`selfdev-shared-lib/README.md`](selfdev-shared-lib/README.md)。

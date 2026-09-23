@@ -109,30 +109,36 @@ com.corp.engine.DataUpdateTool#findByFilter    ← 汇聚门面
 
 ### E 组实测：SQL 执行点在业务工具类里（2026-09-23 新增）
 
-取证方式：在 stub JDBC 的 `executeQuery()` 边界取真实栈、逐字套用 `StackLocator` 的三层判定与整帧缓存；
+取证方式：在 stub JDBC 的 `executeQuery()` 边界取真实栈、逐字套用 agent `StackLocator` 当前版本
+（插件 v2026.9.23，含 T-AgentSourceLocateStale T-01「只缓存判定 + 行号按当前栈现算」）的三层判定；
 同一份语料分别以 `target/classes`（目录态）与本地仓库 JAR（JAR 态）加载，构成唯一自变量。
-完整方法与表格见《[执行点在业务工具类（JAR 态）跳转上顶场景-开发计划](../docs/开发计划/20260923-1520-执行点在业务工具类跳转上顶场景-开发计划.md)》§7。
+完整方法与新旧规则对照见《[执行点在业务工具类（JAR 态）跳转上顶场景-开发计划](../docs/开发计划/20260923-1520-执行点在业务工具类跳转上顶场景-开发计划.md)》§7。
 
 | 档位 | 用例 | 实测主位置 | 判定 |
 |---|---|---|---|
-| P0 不登记 | 28 目录态 | `cn/song/selfdevdemo/kernel/PlanTreeKernel.java:100` | 「跳转恒落框架方法」复现 ✅ |
-| P0 不登记 | 29 JAR 态 | `SourceCaptureToolSiteServiceImpl.java:62`（**Service 的调用行**） | **不登记前缀就已经上顶** ✅ |
-| P1 登记内核层 | 28 目录态·SQL① | `cn/song/selfdevdemo/util/PlanTreeQueryBuilder.java:52`（构建器调用点①） | **正确落点** ✅ |
-| P1 登记内核层 | 28 目录态·SQL② | `CACHE-HIT → 同一个 :52`（自身应为 `:67`） | 同方法内两处调用点串位 ✅ |
-| P1 登记内核层 | 29 JAR 态 | `SourceCaptureToolSiteServiceImpl.java:62`；**候选列首项＝真执行点** `com/corp/shared/util/PlanTreeQueryBuilder.java:38` | **「跳到父方法被调用的地方」单一变量复现** ✅ |
-| P1 登记内核层 | 30 → 31 | 30 = `…ServiceImpl.java:74`；31 = `CACHE-HIT → :74`（自身调用行 `:86`） | **跨文件串位** ✅ |
-| P1 登记内核层 | 32 → 33（目录态对照） | 32 = `util/PlanTreeQueryBuilder.java:94`；33 = `CACHE-HIT → :94` | 合流与帧来源无关，只与 key 粒度有关 ✅ |
-| P2 再登记构建器包 | 29 | 仍是 `…ServiceImpl.java:62`（候选池由 2 收缩为 1） | **前缀只有「跳过」语义，救不回 JAR 里的业务帧** ✅ |
-| P2 再登记构建器包 | 30 → 31 | key 上移为各自的 Service 方法 → 不再串位 | 合流的必要条件是「共享 key」✅ |
+| P0 不登记 | 28 目录态 | `cn/song/selfdevdemo/kernel/PlanTreeKernel.java:100` | 「跳转恒落框架方法」复现 ✅（须登记内核包才解） |
+| P0 不登记 | 29 JAR 态 | `...SourceCaptureToolSiteServiceImpl.java:63`（**Service 的调用行**） | **不登记前缀就已经上顶** ✅ 机制 A |
+| P1 登记内核层 | 28 目录态 SQL①/② | `cn/song/selfdevdemo/util/PlanTreeQueryBuilder.java:52` / `:67` | **正确落点，两处调用点各自独立** ✅ 对照组 |
+| P1 登记内核层 | 29 JAR 态 SQL①/② | 均 `...ServiceImpl.java:63`；真执行点 `com/corp/shared/util/PlanTreeQueryBuilder.java:38`（② 为 `:53`）**只出现在候选列** | **「跳到父方法被调用的地方」单一变量复现** ✅ 机制 A（**当前仍未修**） |
+| P1 登记内核层 | 30 → 31（JAR 共用入口对） | 30 = `...:79`、31 = `...:91`，各落自己的调用行 | 跨调用方串位**已被 T-01 根治**，本对用例转为回归护栏 ✅ |
+| P1 登记内核层 | 32 → 33（目录态对照对） | `util/PlanTreeQueryBuilder.java:94` / `:100`（构建器自身调用行） | 与 31 对照：同为共用入口，差在**打包形态** ✅ |
+| P2 再登记 JAR 业务包 | 29 | 仍是 `...ServiceImpl.java:63`（候选池由 2 收缩为 1） | **前缀只有「跳过」语义，救不回 JAR 里的业务帧** ✅ |
+| P2 再登记 JAR 业务包 | 30 → 31 | `:79` / `:91` 不变（key 上移到各自的 Service 方法） | 同上 ✅ |
+
+> 旧版本对照（≤ v2026.9.18 的整帧缓存）：28 的 SQL② 会被冻在 `:52`（自身应为 `:67`）、
+> 31 会跳到 30 的 `:74`（自身 `:86`）——即 T-AgentSourceLocateStale 修掉的「行号串用」。
+> 真机核对落点前**先确认插件版本**，否则会把已修的缺陷当成新问题。
 
 三条要点：
 
-1. **JAR 里的业务代码会被 L1 判成第三方**，主位置沿栈上顶到第一个目录帧（调用方 Service）——
-   与是否登记前缀无关，登记也救不回来（P2 档）。低代码平台扩展包、公司公共库都是这个形态。
-2. 上顶发生时**真执行点其实躺在候选列里**（29 号候选首项），但 IDE 侧只在主位置解析失败时才查候选，
-   回退链被短路——这是该现象最直接的修法线索。
-3. **整帧缓存 key 只到 `class#method`**：共享帧（同一个构建器方法 / 同一个内核 `execute`）会把
-   先触发者的「文件 + 行 + 候选列」冻结服务给后触发者——同方法两处调用点、跨文件两个调用方都会命中。
+1. **机制 A 未修**：业务代码一旦以依赖 JAR 形态运行（公司公共库 / 低代码平台扩展包），
+   L1 来源过滤就把它判成第三方帧，主位置沿栈上顶到第一个目录帧（调用方 Service）——
+   与是否登记前缀无关，登记也救不回来（P0/P1/P2 三档实测同一落点）。
+2. **修法线索**：上顶发生时**真执行点其实躺在候选列首项**（29 号），但 IDE 侧
+   `EntryJumpResolver` 只在主位置解析失败时才查候选，回退链被短路。
+3. **取证据不需要 info**：`logLevel` 是 agent 的启动参数（插件注入时固定 `warn`，无设置项、无覆盖口），
+   `diagnose()` 的 pool 打点在真机不可达；当前版本改用**与档位无关**的一次性摘要
+   `[T-AgentSourceLocateStale] 入口键非业务帧…`（T-05），控制台直接 grep 即可。
 
 ## 四、端点清单（33 个用例 + 1 个索引）
 

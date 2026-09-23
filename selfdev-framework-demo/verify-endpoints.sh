@@ -46,6 +46,12 @@ check "C24 query/order-limit"     GET  "$BASE/selfdev/query/order-limit?orderBy=
 check "D25 write/update"          POST "$BASE/selfdev/write/update?planId=PLAN_2026005&projectName=quality-trace-updated"
 check "D26 write/delete"          POST "$BASE/selfdev/write/delete?planId=PLAN_NOT_EXIST"
 check "D27 write/batch-update"    POST "$BASE/selfdev/write/batch-update?planIds=PLAN_2026001,PLAN_2026002&status=1"
+check "E28 tool/directory-builder" GET "$BASE/selfdev/tool/directory-builder?owner=lisi"
+check "E29 tool/jar-builder"      GET  "$BASE/selfdev/tool/jar-builder?owner=lisi"
+check "E30 tool/jar-shared-first" GET  "$BASE/selfdev/tool/jar-shared-first?planIds=PLAN_2026001,PLAN_2026002"
+check "E31 tool/jar-shared-second" GET "$BASE/selfdev/tool/jar-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005"
+check "E32 tool/dir-shared-first" GET  "$BASE/selfdev/tool/dir-shared-first?planIds=PLAN_2026001,PLAN_2026002"
+check "E33 tool/dir-shared-second" GET "$BASE/selfdev/tool/dir-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005"
 
 echo "----------------------------------------"
 echo "PASS=$PASS FAIL=$FAIL"

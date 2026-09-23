@@ -3,6 +3,7 @@
 [Sql Visualizer](https://gitee.com/SongRenShuo/mybatis-plus-sql-visualizer) 插件的测试用例 Demo 集合项目。
 
 本仓库包含六个相互独立的 Spring Boot 子项目（Maven 多模块仓库，每个子项目可单独构建运行），
+外加一个 JAR 态语料子工程（`selfdev-shared-lib`，非 Boot 应用），
 覆盖插件支持的各 ORM 主题与 SQL 来源形态，为插件提供真实、丰富的 SQL 预览 / SQL 生成测试场景：
 
 | 子项目 | 端口 / 数据库 | 主题 | 说明 |
@@ -12,7 +13,8 @@
 | [jpa-hibernate-demo](jpa-hibernate-demo) | 8083 / jpa_demo | JPA + Hibernate（Spring Boot 2.6.3） | Spring Data JPA 派生查询、`@Query` JPQL、`CriteriaQuery`、Hibernate HQL、`HibernateTemplate` / `HibernateDaoSupport` 通用 DAO、hbm.xml 遗留实体、JPA 写路径（save / `@Modifying` / `CriteriaUpdate`·`Delete` / Specification / QBE / 锁读） |
 | [mybatis-plus-kotlin-demo](mybatis-plus-kotlin-demo) | 8084 / kotlin_demo | MyBatis-Plus Kotlin（1.9.25 + MP 3.5.7） | `ktQuery()` / `ktUpdate()` 扩展链、Kotlin 直接构造 Wrapper（插件 KtWrapperDetector 语料） |
 | [multi-orm-demo](multi-orm-demo) | 8085 / orm_demo | 其它 ORM 四家（插件 M44 识别器） | Querydsl（Q 类表达式树）、MyBatis Dynamic SQL（DSL 构建）、xbatis（Chain 链）、Easy-Query（proxy 链） |
-| [selfdev-framework-demo](selfdev-framework-demo) | 8086 / selfdev_demo | 自研框架帧过滤前缀（设置项专用语料） | 模拟不经 MyBatis 的自研数据访问引擎（`com.corp.engine` / `com.corp.meta`），27 端点覆盖 12 种调用形态 × 4 类查询/写形态 × 3 档委托深度，用于验证「源码捕获帧过滤前缀」登记前后的跳转落点差异 |
+| [selfdev-framework-demo](selfdev-framework-demo) | 8086 / selfdev_demo | 自研框架帧过滤前缀（设置项专用语料） | 模拟不经 MyBatis 的自研数据访问引擎（`com.corp.engine` / `com.corp.meta`），33 端点覆盖 12 种调用形态 × 4 类查询/写形态 × 3 档委托深度 × 2 种帧来源（目录/JAR），用于验证「源码捕获帧过滤前缀」登记前后的跳转落点差异 |
+| [selfdev-shared-lib](selfdev-shared-lib) | — / —（非 Boot 应用） | 上面的 JAR 态语料 | 普通 JAR：`com.corp.platform.SqlKernel` + `com.corp.shared.util.PlanTreeQueryBuilder`，与 demo 侧目录态两个类逐行同构，唯一差异是「运行期来自依赖 JAR」——复现「SQL 执行点在 JAR 里的业务工具类 → 跳转上顶到调用方 Service」 |
 
 ## 环境要求
 
@@ -32,6 +34,9 @@ cd mybatis-plus-demo && mvn clean compile
 
 > 根目录 `pom.xml` 为**聚合 POM**（packaging=pom，仅含 `<modules>`），作用是让 IDEA 能以多模块形式打开整个目录、以及提供统一的构建入口。
 > 各子项目是**独立 Maven 工程**：各自以 `spring-boot-starter-parent` 作为 parent，互不关联，也不继承根 pom 的任何依赖或属性。
+>
+> 例外：`selfdev-framework-demo` 以依赖形式引用 `selfdev-shared-lib`（E 组 JAR 态语料）。
+> 根目录聚合构建会自动按依赖顺序先建后者；**单模块**构建 demo 前需先 `mvn install -pl selfdev-shared-lib`。
 
 ## 数据库初始化
 
@@ -216,7 +221,8 @@ src/main/resources/
 | `Specification.allOf/anyOf` | Spring Data JPA 3.x | jpa-demo 2.6.3 |
 | `HibernateTemplate.executeFind` | Spring 4.x（5.3 已删） | jpa-demo 5.3 |
 
-> 注意：各子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作聚合入口；新增 `selfdev-framework-demo` 后为六个子项目。
+> 注意：各子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作聚合入口；新增 `selfdev-framework-demo` 后为六个 Boot 子项目，
+> 2026-09-23 再加其 JAR 态语料子工程 `selfdev-shared-lib`（非 Boot 应用），聚合模块共 7 个。
 
 ## 场景覆盖清单增补（2026-09-22 自研框架帧过滤前缀专用语料）
 
@@ -249,3 +255,27 @@ SQL 只在运行期由 agent 增强捕获可见，正是该设置项要解决的
 三条要点：**前缀须覆盖整条引擎链**（分页用例最深层在 `com.corp.meta`，必须两行都填）；
 **落点是最深业务帧**（外层调用者留在候选列）；**切勿登记业务包**（会把真实业务帧一并跳过）。
 完整配方与端点清单见模块 [README](selfdev-framework-demo/README.md)。
+
+## 场景覆盖清单增补（2026-09-23 执行点在业务工具类 / JAR 态帧来源）
+
+开发计划见《[20260923-1520-执行点在业务工具类跳转上顶场景-开发计划](docs/开发计划/20260923-1520-执行点在业务工具类跳转上顶场景-开发计划.md)》。
+
+补一条真实反馈的形状：**SQL 的执行点在业务自己的工具/构建类里，Service 只是它的调用方**；
+用户登记了公司工具库包名作帧过滤前缀，但「跳转到 Java」落到的是上层 Service 里「调用该工具类」的那一行。
+在 `selfdev-framework-demo` 增 E 组 6 端点（28~33）+ 新子工程 `selfdev-shared-lib`，做成 **2×2 控制变量**实验：
+
+| 自变量 | 两档 | 由什么承载 |
+|---|---|---|
+| 帧来源 | 目录 `target/classes` / 依赖 JAR | 同一对类写两遍：`com.corp.platform.SqlKernel` ↔ `cn.song.selfdevdemo.kernel.PlanTreeKernel`；`com.corp.shared.util.PlanTreeQueryBuilder` ↔ `cn.song.selfdevdemo.util.PlanTreeQueryBuilder`（逐行同构，SQL 文本一致） |
+| 调用方是否唯一 | 单 Service / 两个 Service 共用同一构建器方法 | 28·29 单调用方；30→31、32→33 成对触发 |
+
+实测（在 stub JDBC 执行边界取真实栈、逐字套用 `StackLocator` 三层判定与整帧缓存，非推断）：
+
+| 结论 | 证据 |
+|---|---|
+| **业务代码打进 JAR 运行时，L1 来源过滤把它判成第三方帧，主位置沿栈上顶到调用方 Service**——用户现象复现，且**登记前缀无法挽回**（前缀只有「跳过」语义，没有「提升为业务帧」的反向语义） | 28（目录态）落 `util/PlanTreeQueryBuilder.java:52` 正确；29（JAR 态、同构代码）落 `SourceCaptureToolSiteServiceImpl.java:62`；P2 档把 JAR 业务包也登记后落点不变 |
+| **真执行点其实躺在候选列里**，但 IDE 侧 `EntryJumpResolver` 只在主位置解析失败时才查候选，回退链被短路 | 29 的候选首项即 `com/corp/shared/util/PlanTreeQueryBuilder.java:38` |
+| **整帧缓存 key 只到 `class#method`（不含行号/不含完整链）⇒ 跨调用方串位**，与帧来源无关，目录态同样命中 | 30→31：31 落到 30 的 `…ServiceImpl.java:74`（自身 `:86`）；32→33 目录态对照同形；28 的两处调用点之间也已串位（SQL② 被冻在 SQL① 的 `:52`，自身应为 `:67`） |
+
+> 走查 JAR 档位需绕开 IDEA 的 Maven workspace 解析（它会把兄弟模块还原成目录形态），
+> 配方见 [`selfdev-shared-lib/README.md`](selfdev-shared-lib/README.md)。

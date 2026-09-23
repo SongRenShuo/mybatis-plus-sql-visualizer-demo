@@ -42,6 +42,20 @@
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
         </dependency>
+
+        <!--
+          selfdev-shared-lib：E 组用例的 JAR 态语料（业务构建器 + 平台内核）。
+          走查「帧来源=JAR」档时须让它以依赖 JAR 形态上 classpath：
+          仓库根 mvnd install 一次 → IDEA 里 Maven 面板对本模块 Unload Projects（或改用
+          mvn spring-boot:run -pl selfdev-framework-demo 单模块启动）；
+          否则 IDEA 的 workspace 解析会把它换回兄弟模块的 target/classes 目录形态，
+          此时 E29/E30/E31 与 E28/E32/E33 同形（该差异本身就是可观察量）。
+        -->
+        <dependency>
+            <groupId>com.corp</groupId>
+            <artifactId>selfdev-shared-lib</artifactId>
+            <version>1.0.0</version>
+        </dependency>
     </dependencies>
 
     <build>

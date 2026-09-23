@@ -4,7 +4,7 @@
 **「源码捕获帧过滤前缀」（`Source capture frame skip prefixes`）** 的专用测试语料模块。
 
 模拟公司**自研数据访问框架**（不经 MyBatis、无拦截点、只能靠 agent 字节码增强捕获），
-用 27 个可运行端点覆盖多种业务调用形态，用于在 IDEA 中对照验证「登记前缀前 / 后」的跳转落点差异。
+用 33 个可运行端点覆盖多种业务调用形态，用于在 IDEA 中对照验证「登记前缀前 / 后」的跳转落点差异。
 
 | 项 | 值 |
 |---|---|
@@ -13,6 +13,7 @@
 | 基线 | Spring Boot 2.6.3 / JDK 1.8 / 仅 `web` + `jdbc` + `mysql-connector-java` |
 | 业务包 | `cn.song.selfdevdemo.*` |
 | 模拟框架包 | `com.corp.engine.*`（引擎主体）、`com.corp.meta.*`（共享元数据/分页库） |
+| JAR 态语料 | 兄弟模块 [`selfdev-shared-lib`](../selfdev-shared-lib)（`com.corp.platform` + `com.corp.shared.util`，E 组专用） |
 
 > 本模块与其他五个子项目的一处差异：启用了 `spring.sql.init`（含 `encoding: UTF-8`）自初始化建表，
 > 目标是「起服务即可 curl」，不需要手工跑脚本。
@@ -50,6 +51,17 @@ com.corp.engine                  数据访问引擎主体
 ├── QueryContext / QueryCallback 回调模板
 └── JdkProxyFactory              JDK 动态代理门面
 ```
+
+E 组（28~33）另用一对**同构双层**结构，专门制造「SQL 执行点在业务工具类里」的栈形：
+
+```
+                          JAR 态（selfdev-shared-lib）        目录态（本模块）
+平台内核帧（executeQuery） com.corp.platform.SqlKernel         cn.song.selfdevdemo.kernel.PlanTreeKernel
+业务树构建器（发 SQL）     com.corp.shared.util.                cn.song.selfdevdemo.util.
+                          PlanTreeQueryBuilder                PlanTreeQueryBuilder
+```
+
+两对类逐行等价，唯一差异是**打包形态**——这正是 E 组的自变量，详见 §三 E 组实测。
 
 SQL 执行时的调用栈（业务帧以下部分）：
 
@@ -92,10 +104,39 @@ com.corp.engine.DataUpdateTool#findByFilter    ← 汇聚门面
   中间层与调用方作为候选帧留在候选列中。
 - **切勿登记业务包**：把 `cn.song.selfdevdemo.` 也登记进去，真实业务帧被一并跳过，
   候选池被过滤为空，主位置判定失败——**跳转能力直接消失**（不是落到更外层调用者，而是完全无位置）。
+  > 2026-09-23 补：只登记**部分**业务包（E 组 P2 档：`cn.song.selfdevdemo.kernel.` +
+  > `cn.song.selfdevdemo.util.`，留住了 Service）时并非全空，实测退化成「落到 Service 的调用行」。
 
-## 四、端点清单（27 个用例 + 1 个索引）
+### E 组实测：SQL 执行点在业务工具类里（2026-09-23 新增）
 
-`GET /selfdev/index` 返回同样的清单。四组维度：调用形态 × 委托深度 × 查询形态 × 写路径。
+取证方式：在 stub JDBC 的 `executeQuery()` 边界取真实栈、逐字套用 `StackLocator` 的三层判定与整帧缓存；
+同一份语料分别以 `target/classes`（目录态）与本地仓库 JAR（JAR 态）加载，构成唯一自变量。
+完整方法与表格见《[执行点在业务工具类（JAR 态）跳转上顶场景-开发计划](../docs/开发计划/20260923-1520-执行点在业务工具类跳转上顶场景-开发计划.md)》§7。
+
+| 档位 | 用例 | 实测主位置 | 判定 |
+|---|---|---|---|
+| P0 不登记 | 28 目录态 | `cn/song/selfdevdemo/kernel/PlanTreeKernel.java:100` | 「跳转恒落框架方法」复现 ✅ |
+| P0 不登记 | 29 JAR 态 | `SourceCaptureToolSiteServiceImpl.java:62`（**Service 的调用行**） | **不登记前缀就已经上顶** ✅ |
+| P1 登记内核层 | 28 目录态·SQL① | `cn/song/selfdevdemo/util/PlanTreeQueryBuilder.java:52`（构建器调用点①） | **正确落点** ✅ |
+| P1 登记内核层 | 28 目录态·SQL② | `CACHE-HIT → 同一个 :52`（自身应为 `:67`） | 同方法内两处调用点串位 ✅ |
+| P1 登记内核层 | 29 JAR 态 | `SourceCaptureToolSiteServiceImpl.java:62`；**候选列首项＝真执行点** `com/corp/shared/util/PlanTreeQueryBuilder.java:38` | **「跳到父方法被调用的地方」单一变量复现** ✅ |
+| P1 登记内核层 | 30 → 31 | 30 = `…ServiceImpl.java:74`；31 = `CACHE-HIT → :74`（自身调用行 `:86`） | **跨文件串位** ✅ |
+| P1 登记内核层 | 32 → 33（目录态对照） | 32 = `util/PlanTreeQueryBuilder.java:94`；33 = `CACHE-HIT → :94` | 合流与帧来源无关，只与 key 粒度有关 ✅ |
+| P2 再登记构建器包 | 29 | 仍是 `…ServiceImpl.java:62`（候选池由 2 收缩为 1） | **前缀只有「跳过」语义，救不回 JAR 里的业务帧** ✅ |
+| P2 再登记构建器包 | 30 → 31 | key 上移为各自的 Service 方法 → 不再串位 | 合流的必要条件是「共享 key」✅ |
+
+三条要点：
+
+1. **JAR 里的业务代码会被 L1 判成第三方**，主位置沿栈上顶到第一个目录帧（调用方 Service）——
+   与是否登记前缀无关，登记也救不回来（P2 档）。低代码平台扩展包、公司公共库都是这个形态。
+2. 上顶发生时**真执行点其实躺在候选列里**（29 号候选首项），但 IDE 侧只在主位置解析失败时才查候选，
+   回退链被短路——这是该现象最直接的修法线索。
+3. **整帧缓存 key 只到 `class#method`**：共享帧（同一个构建器方法 / 同一个内核 `execute`）会把
+   先触发者的「文件 + 行 + 候选列」冻结服务给后触发者——同方法两处调用点、跨文件两个调用方都会命中。
+
+## 四、端点清单（33 个用例 + 1 个索引）
+
+`GET /selfdev/index` 返回同样的清单。五组维度：调用形态 × 委托深度 × 查询形态 × 写路径 × 执行点所在层。
 
 ### A 组｜调用形态（`SourceCaptureStyleServiceImpl`）
 
@@ -146,20 +187,43 @@ com.corp.engine.DataUpdateTool#findByFilter    ← 汇聚门面
 
 > 26 号默认传不存在的编号，避免破坏后续用例的数据；传真实编号即可实际删除。
 
+### E 组｜执行点所在层（`SourceCaptureToolSiteServiceImpl`）
+
+| # | 端点 | 形态 |
+|---|------|------|
+| 28 | `GET /selfdev/tool/directory-builder?owner=lisi` | 目录态：Service → 业务构建类（**两处** SQL 调用点）→ 目录态内核 |
+| 29 | `GET /selfdev/tool/jar-builder?owner=lisi` | 与 28 逐行同构，构建类与内核**均来自依赖 JAR** ← 用户反馈形状 |
+| 30 | `GET /selfdev/tool/jar-shared-first?planIds=PLAN_2026001,PLAN_2026002` | JAR 态共用构建器方法·先触发者 |
+| 31 | `GET /selfdev/tool/jar-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005` | JAR 态同一方法·后触发者（**跨文件串位**观测位） |
+| 32 | `GET /selfdev/tool/dir-shared-first?planIds=PLAN_2026001,PLAN_2026002` | 30 的目录态对照 |
+| 33 | `GET /selfdev/tool/dir-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005` | 31 的目录态对照 |
+
+> 30/31 与 32/33 须**按编号先后、在同一进程内**连续触发（整帧缓存在 agent 进程内，重启即失效）。
+> 前缀配方分档（P0 / P1 / P2）见 §三 E 组实测。
+
 ## 五、构建与运行
 
 ```bash
+# 先装 JAR 态语料（E 组依赖；根目录一次装好，后续改动再重装）
+mvnd install -pl selfdev-shared-lib
+
 # 单模块
 cd selfdev-framework-demo && mvnd clean package
 
-# 启动
+# 启动（IDEA 直接跑 SelfDevFrameworkDemoApplication 亦可）
 java -jar target/selfdev-framework-demo-1.0.0.jar
 
-# 全端点冒烟（28 项，期望 PASS=28 FAIL=0）
+# 全端点冒烟（34 项，期望 PASS=34 FAIL=0）
 bash verify-endpoints.sh
 ```
 
 `verify-endpoints.sh` 逐条打全部端点并打印 HTTP 状态与响应体片段，用于回归。
+
+> **走查 E 组 JAR 档位（29/30/31）前必读**：IDEA 的 Maven workspace 解析会把 `selfdev-shared-lib`
+> 还原成兄弟模块的 `target/classes`（目录形态），此时 29 与 28 同形、跳得对。
+> 要看到 JAR 档位：`mvnd install` 后在 Maven 面板对该模块 **Unload Projects**，
+> 或用 `mvnd -pl selfdev-framework-demo spring-boot:run` 单模块启动。详见
+> [`selfdev-shared-lib/README.md`](../selfdev-shared-lib/README.md)。
 
 ## 六、已知边界
 
@@ -168,4 +232,10 @@ bash verify-endpoints.sh
 - 引擎类与业务类同处 `target/classes` 目录（真实项目「同工程多模块」形态）。
   若把引擎打成独立 JAR，`StackLocator` 的来源过滤（L1）会自行跳过它，前缀就不再必要——
   这也说明本模块的目录形态是复现该功能的必要条件。
+- **反向边界（E 组补的正是这一面）**：如果**业务代码**（而非引擎）打成 JAR 运行，
+  L1 会把它连同引擎一起判为第三方，主位置上顶到第一个目录帧（调用方），
+  且**登记前缀无法挽回**——前缀只有「跳过」语义，没有「提升为业务帧」的反向语义。
+- E 组的 `PlanTreeKernel` / `PlanTreeQueryBuilder`（目录态）与 `SqlKernel` /
+  `com.corp.shared.util.PlanTreeQueryBuilder`（JAR 态）**刻意写成逐行同构的两份**：
+  对照实验要求唯一自变量是打包形态，故不接受「复用同一个类来对比」。
 - 本模块不测插件设置页的 UI 可见性（已由插件仓库守卫测试锁定）。

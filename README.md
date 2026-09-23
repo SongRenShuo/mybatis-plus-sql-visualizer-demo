@@ -13,7 +13,7 @@
 | [jpa-hibernate-demo](jpa-hibernate-demo) | 8083 / jpa_demo | JPA + Hibernate（Spring Boot 2.6.3） | Spring Data JPA 派生查询、`@Query` JPQL、`CriteriaQuery`、Hibernate HQL、`HibernateTemplate` / `HibernateDaoSupport` 通用 DAO、hbm.xml 遗留实体、JPA 写路径（save / `@Modifying` / `CriteriaUpdate`·`Delete` / Specification / QBE / 锁读） |
 | [mybatis-plus-kotlin-demo](mybatis-plus-kotlin-demo) | 8084 / kotlin_demo | MyBatis-Plus Kotlin（1.9.25 + MP 3.5.7） | `ktQuery()` / `ktUpdate()` 扩展链、Kotlin 直接构造 Wrapper（插件 KtWrapperDetector 语料） |
 | [multi-orm-demo](multi-orm-demo) | 8085 / orm_demo | 其它 ORM 四家（插件 M44 识别器） | Querydsl（Q 类表达式树）、MyBatis Dynamic SQL（DSL 构建）、xbatis（Chain 链）、Easy-Query（proxy 链） |
-| [selfdev-framework-demo](selfdev-framework-demo) | 8086 / selfdev_demo | 自研框架帧过滤前缀（设置项专用语料） | 模拟不经 MyBatis 的自研数据访问引擎（`com.corp.engine` / `com.corp.meta`），33 端点覆盖 12 种调用形态 × 4 类查询/写形态 × 3 档委托深度 × 2 种帧来源（目录/JAR），用于验证「源码捕获帧过滤前缀」登记前后的跳转落点差异 |
+| [selfdev-framework-demo](selfdev-framework-demo) | 8086 / selfdev_demo | 自研框架帧过滤前缀（设置项专用语料） | 模拟不经 MyBatis 的自研数据访问引擎（`com.corp.engine` / `com.corp.meta`），34 端点覆盖 12 种调用形态 × 4 类查询/写形态 × 3 档委托深度 × 2 种帧来源（目录/JAR），用于验证「源码捕获帧过滤前缀」登记前后的跳转落点差异 |
 | [selfdev-shared-lib](selfdev-shared-lib) | — / —（非 Boot 应用） | 上面的 JAR 态语料 | 普通 JAR：`com.corp.platform.SqlKernel` + `com.corp.shared.util.PlanTreeQueryBuilder`，与 demo 侧目录态两个类逐行同构，唯一差异是「运行期来自依赖 JAR」——复现「SQL 执行点在 JAR 里的业务工具类 → 跳转上顶到调用方 Service」 |
 
 ## 环境要求
@@ -262,25 +262,30 @@ SQL 只在运行期由 agent 增强捕获可见，正是该设置项要解决的
 
 补一条真实反馈的形状：**SQL 的执行点在业务自己的工具/构建类里，Service 只是它的调用方**；
 用户登记了公司工具库包名作帧过滤前缀，但「跳转到 Java」落到的是上层 Service 里「调用该工具类」的那一行。
-在 `selfdev-framework-demo` 增 E 组 6 端点（28~33）+ 新子工程 `selfdev-shared-lib`，做成 **2×2 控制变量**实验：
+在 `selfdev-framework-demo` 增 E 组 7 端点（28~34）+ 新子工程 `selfdev-shared-lib`，做成控制变量实验：
 
-| 自变量 | 两档 | 由什么承载 |
+| 自变量 | 档位 | 由什么承载 |
 |---|---|---|
 | 帧来源 | 目录 `target/classes` / 依赖 JAR | 同一对类写两遍：`com.corp.platform.SqlKernel` ↔ `cn.song.selfdevdemo.kernel.PlanTreeKernel`；`com.corp.shared.util.PlanTreeQueryBuilder` ↔ `cn.song.selfdevdemo.util.PlanTreeQueryBuilder`（逐行同构，SQL 文本一致） |
 | 调用方是否唯一 | 单 Service / 两个 Service 共用同一构建器方法 | 28·29 单调用方；30→31、32→33 成对触发 |
+| 业务与内核的来源组合 | 全目录 / 全 JAR / **业务在目录 + 内核在 JAR** | 34 号：同一 Service 方法先直发一条 SQL、再调目录态工具类发第二条（**真实现场形状**） |
 
 实测（在 stub JDBC 执行边界取真实栈、逐字套用 agent `StackLocator` **当前版本 v2026.9.23** 的三层判定与判定缓存，非推断）：
 
 | 结论 | 证据 |
 |---|---|
-| **业务代码打进 JAR 运行时，L1 来源过滤把它判成第三方帧，主位置沿栈上顶到调用方 Service**——用户现象复现，**当前仍未修**，且不登记前缀就已发生、登记前缀也救不回（前缀只有「跳过」语义，没有「提升为业务帧」的反向语义） | 28（目录态）落 `util/PlanTreeQueryBuilder.java:52` / `:67` 两处调用行，正确；29（JAR 态、同构代码）P0/P1/P2 三档均落 `SourceCaptureToolSiteServiceImpl.java:63` |
-| **真执行点其实躺在候选列里**，但 IDE 侧 `EntryJumpResolver` 只在主位置解析失败时才查候选，回退链被短路 | 29 的候选首项即 `com/corp/shared/util/PlanTreeQueryBuilder.java:38`（SQL② 为 `:53`） |
-| **跨调用方/跨调用点的行号串用已在 v2026.9.23 根治**（T-AgentSourceLocateStale T-01：只缓存判定 + 行号按当前栈现算 + 身份在场校验）；E30/31 与 28 的两处调用点转为该修复的**回归护栏** | 30→31 各落 `…ServiceImpl.java:79` / `:91`；32→33 各落 `util/PlanTreeQueryBuilder.java:94` / `:100`。**旧版对照**（≤ v2026.9.18 的整帧缓存）：31 会跳到 30 的 `:74`、28 的 SQL② 会冻在 SQL① 的 `:52` |
+| **机制 A（未修）**：业务代码打进 JAR 运行时，L1 来源过滤把它判成第三方帧，主位置沿栈上顶到调用方 Service——不登记前缀就已发生、登记前缀也救不回（前缀只有「跳过」语义，没有「提升为业务帧」的反向语义） | 28（目录态）落 `util/PlanTreeQueryBuilder.java:52` / `:67` 两处调用行，正确；29（JAR 态、同构代码）P0/P1/P2 三档均落 `SourceCaptureToolSiteServiceImpl.java:66` |
+| **机制 B′（未修，用户现场主因）**：判定缓存的「身份在场」只比 `class#method`，而**先直发 SQL 的那个 Service 方法是其后每条栈的祖先帧、必然在场** ⇒ 主位置被浅帧钉住，行号按当前栈现算＝「调用工具类」那一行 | 34 号（业务在目录 + 内核在 JAR）P0 档：SQL① 落 `...ServiceImpl.java:129` 正确，SQL② 落 `:132`＝调用工具类行，真执行点 `util/PlanTreeQueryBuilder.java:96` 只在候选列第 3 项；**同用例登记 `com.corp.platform.` 后落 `:96` 正确** ⇒ 补登记平台引擎包名是用户侧可立即用的缓解 |
+| **真执行点其实躺在候选列里**，但 IDE 侧 `EntryJumpResolver` 只在主位置解析失败时才查候选，回退链被短路 | 29 的候选首项即 `com/corp/shared/util/PlanTreeQueryBuilder.java:38`（SQL② 为 `:53`）；34 号 SQL② 的候选含 `util/PlanTreeQueryBuilder.java:96` |
+| **同身份行号互相冻结这一子面已在 v2026.9.23 根治**（T-AgentSourceLocateStale T-01：只缓存判定 + 行号按当前栈现算 + 身份在场校验）；E30/31 与 28 的两处调用点转为该修复的**回归护栏** | 30→31 各落 `…ServiceImpl.java:82` / `:94`；32→33 各落 `util/PlanTreeQueryBuilder.java:106` / `:112`。**旧版对照**（≤ v2026.9.18 的整帧缓存）：31 会跳到 30 的 `:74`、28 的 SQL② 会冻在 SQL① 的 `:52` |
 
 > 真机核对落点前先确认插件版本：串位那半部分是已修的旧缺陷，别当新问题查。
 > 另：`logLevel` 是 agent 的启动参数（插件注入时固定 `logLevel=warn`，无设置项、无覆盖口），
 > info 档的 pool 打点在真机不可达；当前版本改用与档位无关的一次性摘要
 > `[T-AgentSourceLocateStale] 入口键非业务帧…`，在应用控制台 grep 即可。
+> 真实项目取到的一条（名称已脱敏）显示 `entry=<平台引擎的字典服务帧>#search…`、
+> `primary=<业务工具类>:309 (<工具类>#convert…)`、`via=L1` —— 该条落点本身正确，
+> 但直接证明了 **entryKey 是平台引擎的共享帧**，即 34 号（机制 B′）成立的前提。
 
 > 走查 JAR 档位需绕开 IDEA 的 Maven workspace 解析（它会把兄弟模块还原成目录形态），
 > 配方见 [`selfdev-shared-lib/README.md`](selfdev-shared-lib/README.md)。

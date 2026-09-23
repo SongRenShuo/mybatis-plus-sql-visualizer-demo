@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 自研框架帧过滤前缀测试控制器：33 个用例端点 + 1 个索引端点。
+ * 自研框架帧过滤前缀测试控制器：34 个用例端点 + 1 个索引端点。
  *
  * <p>所有端点都真实执行 SQL，用于在 IDEA 中配合插件的「增强捕获」观察
  * 「源码捕获帧过滤前缀」登记前后的跳转落点差异。逐用例的预期见各 Service 的方法注释，
@@ -98,12 +98,15 @@ public class SelfDevFrameworkController {
                 "GET  /selfdev/tool/jar-shared-first?planIds=PLAN_2026001,PLAN_2026002      ← 先触发",
                 "GET  /selfdev/tool/jar-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005 ← 后触发，期望暴露跨文件串位",
                 "GET  /selfdev/tool/dir-shared-first?planIds=PLAN_2026001,PLAN_2026002      ← 32：目录态合流对照，先触发",
-                "GET  /selfdev/tool/dir-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005 ← 33：目录态合流对照，后触发"));
+                "GET  /selfdev/tool/dir-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005 ← 33：目录态合流对照，后触发",
+                "GET  /selfdev/tool/mixed-source?planIds=PLAN_2026001,PLAN_2026002  ← 34：业务在目录+内核在 JAR，先直发后经工具类发（真实现场形状）"));
         result.put("前缀登记建议", Arrays.asList(
                 "普通端点：登记 com.corp.engine.",
                 "分页端点（paged / paged-deep）：额外登记 com.corp.meta.",
                 "E 组目录态（28/32/33）：登记 cn.song.selfdevdemo.kernel.",
                 "E 组 JAR 态（29/30/31）：登记 com.corp.platform.（登记与不登记，落点都停在 Service——这正是待查项）",
+                "E 组混合来源（34）：不登记 com.corp.platform. 时第二条会落到「调用工具类」那一行；"
+                        + "登记后即恢复正确 —— 共享 entryKey 是这一现象的开关",
                 "切勿登记业务包 cn.song.selfdevdemo.（会把真实业务帧一并跳过）"));
         return result;
     }
@@ -341,6 +344,13 @@ public class SelfDevFrameworkController {
     public List<Map<String, Object>> dirSharedSecond(
             @RequestParam(defaultValue = "PLAN_2026003,PLAN_2026004,PLAN_2026005") String planIds) {
         return toolSiteService.directorySharedKeySecond(split(planIds));
+    }
+
+    /** 34. 混合来源：业务在目录、平台内核在 JAR；同一方法先直发 SQL 再经工具类发第二条。 */
+    @GetMapping("/tool/mixed-source")
+    public List<Map<String, Object>> mixedSource(
+            @RequestParam(defaultValue = "PLAN_2026001,PLAN_2026002") String planIds) {
+        return toolSiteService.mixedSourcePair(split(planIds));
     }
 
     private List<String> split(String csv) {

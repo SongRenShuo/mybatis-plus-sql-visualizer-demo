@@ -4,7 +4,7 @@
 **「源码捕获帧过滤前缀」（`Source capture frame skip prefixes`）** 的专用测试语料模块。
 
 模拟公司**自研数据访问框架**（不经 MyBatis、无拦截点、只能靠 agent 字节码增强捕获），
-用 33 个可运行端点覆盖多种业务调用形态，用于在 IDEA 中对照验证「登记前缀前 / 后」的跳转落点差异。
+用 34 个可运行端点覆盖多种业务调用形态，用于在 IDEA 中对照验证「登记前缀前 / 后」的跳转落点差异。
 
 | 项 | 值 |
 |---|---|
@@ -52,7 +52,7 @@ com.corp.engine                  数据访问引擎主体
 └── JdkProxyFactory              JDK 动态代理门面
 ```
 
-E 组（28~33）另用一对**同构双层**结构，专门制造「SQL 执行点在业务工具类里」的栈形：
+E 组（28~34）另用一对**同构双层**结构，专门制造「SQL 执行点在业务工具类里」的栈形：
 
 ```
                           JAR 态（selfdev-shared-lib）        目录态（本模块）
@@ -112,35 +112,46 @@ com.corp.engine.DataUpdateTool#findByFilter    ← 汇聚门面
 取证方式：在 stub JDBC 的 `executeQuery()` 边界取真实栈、逐字套用 agent `StackLocator` 当前版本
 （插件 v2026.9.23，含 T-AgentSourceLocateStale T-01「只缓存判定 + 行号按当前栈现算」）的三层判定；
 同一份语料分别以 `target/classes`（目录态）与本地仓库 JAR（JAR 态）加载，构成唯一自变量。
-完整方法与新旧规则对照见《[执行点在业务工具类（JAR 态）跳转上顶场景-开发计划](../docs/开发计划/20260923-1520-执行点在业务工具类跳转上顶场景-开发计划.md)》§7。
+完整方法、档位定义（P0/P1/P2）与新旧规则对照见
+《[执行点在业务工具类（JAR 态）跳转上顶场景-开发计划](../docs/开发计划/20260923-1520-执行点在业务工具类跳转上顶场景-开发计划.md)》§7。
 
 | 档位 | 用例 | 实测主位置 | 判定 |
 |---|---|---|---|
-| P0 不登记 | 28 目录态 | `cn/song/selfdevdemo/kernel/PlanTreeKernel.java:100` | 「跳转恒落框架方法」复现 ✅（须登记内核包才解） |
-| P0 不登记 | 29 JAR 态 | `...SourceCaptureToolSiteServiceImpl.java:63`（**Service 的调用行**） | **不登记前缀就已经上顶** ✅ 机制 A |
-| P1 登记内核层 | 28 目录态 SQL①/② | `cn/song/selfdevdemo/util/PlanTreeQueryBuilder.java:52` / `:67` | **正确落点，两处调用点各自独立** ✅ 对照组 |
-| P1 登记内核层 | 29 JAR 态 SQL①/② | 均 `...ServiceImpl.java:63`；真执行点 `com/corp/shared/util/PlanTreeQueryBuilder.java:38`（② 为 `:53`）**只出现在候选列** | **「跳到父方法被调用的地方」单一变量复现** ✅ 机制 A（**当前仍未修**） |
-| P1 登记内核层 | 30 → 31（JAR 共用入口对） | 30 = `...:79`、31 = `...:91`，各落自己的调用行 | 跨调用方串位**已被 T-01 根治**，本对用例转为回归护栏 ✅ |
-| P1 登记内核层 | 32 → 33（目录态对照对） | `util/PlanTreeQueryBuilder.java:94` / `:100`（构建器自身调用行） | 与 31 对照：同为共用入口，差在**打包形态** ✅ |
-| P2 再登记 JAR 业务包 | 29 | 仍是 `...ServiceImpl.java:63`（候选池由 2 收缩为 1） | **前缀只有「跳过」语义，救不回 JAR 里的业务帧** ✅ |
-| P2 再登记 JAR 业务包 | 30 → 31 | `:79` / `:91` 不变（key 上移到各自的 Service 方法） | 同上 ✅ |
-
-> 旧版本对照（≤ v2026.9.18 的整帧缓存）：28 的 SQL② 会被冻在 `:52`（自身应为 `:67`）、
-> 31 会跳到 30 的 `:74`（自身 `:86`）——即 T-AgentSourceLocateStale 修掉的「行号串用」。
-> 真机核对落点前**先确认插件版本**，否则会把已修的缺陷当成新问题。
+| P0 不登记 | 28 目录态 | `cn/song/selfdevdemo/kernel/PlanTreeKernel.java:100` | 「跳转恒落框架方法」复现 ✅（登记内核包才解） |
+| P0 不登记 | 29 JAR 态 | `...ServiceImpl.java:66`（Service 的调用行） | 不登记就已上顶 ✅ 机制 A |
+| **P0 不登记** | **34 混合来源** | SQL① `...ServiceImpl.java:129`（直发行，正确）；**SQL② `...ServiceImpl.java:132`＝「调用工具类」那一行** | **真实现场 1:1 复现** ✅ 机制 B′（**当前仍活**）|
+| P1 登记内核层 | 28 目录态 SQL①/② | `cn/song/selfdevdemo/util/PlanTreeQueryBuilder.java:52` / `:67` | 正确，且两处调用点各自独立 ✅ 对照组 |
+| P1 登记内核层 | 29 JAR 态 SQL①/② | 均 `...ServiceImpl.java:66`；真执行点 `com/corp/shared/util/PlanTreeQueryBuilder.java:38`（② 为 `:53`）**只在候选列** | 机制 A 复现 ✅（**未修**）|
+| P1 登记内核层 | 30 → 31（JAR 共用入口对） | `...:82` / `...:94`，各落自己调用行 | 同身份行号冻结已被 T-01 根治 ✅ 回归位 |
+| P1 登记内核层 | 32 → 33（目录态对照对） | `util/PlanTreeQueryBuilder.java:106` / `:112` | 与 31 的差只来自打包形态 ✅ |
+| **P1 登记 `com.corp.platform.`** | **34 混合来源** | SQL① `...ServiceImpl.java:129`；**SQL② `util/PlanTreeQueryBuilder.java:96`＝真执行点** | **把内核包名补登记即可恢复正确** ✅ 可落地缓解 |
+| P2 再登记 JAR 业务包 | 29 / 30 → 31 | `...:66` 不变（候选池 2→1）；`:82` / `:94` | 前缀只有「跳过」语义，救不回 JAR 业务帧 ✅ |
+| P2 登记目录态工具类包 | 28 | `...ServiceImpl.java:50` | 业务包被跳过后落调用方，与「切勿登记业务包」一致 |
 
 三条要点：
 
-1. **机制 A 未修**：业务代码一旦以依赖 JAR 形态运行（公司公共库 / 低代码平台扩展包），
-   L1 来源过滤就把它判成第三方帧，主位置沿栈上顶到第一个目录帧（调用方 Service）——
-   与是否登记前缀无关，登记也救不回来（P0/P1/P2 三档实测同一落点）。
-2. **修法线索**：上顶发生时**真执行点其实躺在候选列首项**（29 号），但 IDE 侧
-   `EntryJumpResolver` 只在主位置解析失败时才查候选，回退链被短路。
-3. **取证据不需要 info**：`logLevel` 是 agent 的启动参数（插件注入时固定 `warn`，无设置项、无覆盖口），
-   `diagnose()` 的 pool 打点在真机不可达；当前版本改用**与档位无关**的一次性摘要
-   `[T-AgentSourceLocateStale] 入口键非业务帧…`（T-05），控制台直接 grep 即可。
+1. **机制 A（L1 把 JAR 帧判第三方）未修**：业务工具类一旦以依赖 JAR 运行，主位置沿栈上顶到
+   第一个目录帧（调用方 Service）——与是否登记前缀无关，登记也救不回（P0/P1/P2 三档同一落点）。
+2. **机制 B′（判定缓存「身份在场」粒度只到 `class#method`）未修，且正是用户现场的主因**：
+   同一 Service 方法先直发一条 SQL、再调业务工具类发第二条时，第一条把「最深目录帧＝本方法」
+   写进共享 `entryKey` 的判定缓存；而该方法是第二条栈上的**祖先帧、必然在场** ⇒ 校验通过 ⇒
+   主位置被钉在本方法，行号按当前栈现算＝「调用工具类」那一行。
+   T-01 修掉的只是「同一身份行号互相冻结」的子面（28/30/31 已正确），**浅帧钉住深帧这条路径仍在**。
+3. **两条可落地线索**：① 钉住发生时**真执行点就在候选列里**（34 号第 3 项、29 号首项），
+   而 IDE 侧 `EntryJumpResolver` 只在主位置解析失败时才查候选，回退链被短路；
+   ② 用户侧立刻可用的是**把平台引擎包名也登记进前缀**（34 号 P1 档实证恢复正确）——
+   代价是若某条 SQL 栈上除引擎帧外无目录帧，会退到「无位置」（见 §三 误用后果）。
 
-## 四、端点清单（33 个用例 + 1 个索引）
+> **真机取证口径**：`logLevel` 是 agent 的启动参数（插件注入时固定 `warn`，无设置项、无系统属性覆盖口），
+> `diagnose()` 的 pool 打点在真机不可达。当前版本改提供**与档位无关**的一次性摘要
+> `[T-AgentSourceLocateStale] 入口键非业务帧（entry=… primary=… via=…）`，在应用控制台 grep 即可；
+> 按 entryKey 去重，建议重启应用后只触发一次目标接口再看。
+> 真实项目取到的一条（名称已脱敏）：`entry=<平台引擎的字典服务帧>#search…`、
+> `primary=<业务工具类>:309 (<工具类>#convert…)`、`via=L1`——
+> 落点本身正确（该行确实在调字典工具类），并直接证明 **entryKey 是平台引擎的共享帧**，
+> 即本模块 34 号所复现形态的成立前提。
+
+## 四、端点清单（34 个用例 + 1 个索引）
 
 `GET /selfdev/index` 返回同样的清单。五组维度：调用形态 × 委托深度 × 查询形态 × 写路径 × 执行点所在层。
 
@@ -203,6 +214,7 @@ com.corp.engine.DataUpdateTool#findByFilter    ← 汇聚门面
 | 31 | `GET /selfdev/tool/jar-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005` | JAR 态同一方法·后触发者（**跨文件串位**观测位） |
 | 32 | `GET /selfdev/tool/dir-shared-first?planIds=PLAN_2026001,PLAN_2026002` | 30 的目录态对照 |
 | 33 | `GET /selfdev/tool/dir-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005` | 31 的目录态对照 |
+| 34 | `GET /selfdev/tool/mixed-source?planIds=PLAN_2026001,PLAN_2026002` | **混合来源＝真实现场形状**：业务全在目录、只有内核在 JAR；同一 Service 方法先直发一条 SQL、再调工具类发第二条 |
 
 > 30/31 与 32/33 须**按编号先后、在同一进程内**连续触发（整帧缓存在 agent 进程内，重启即失效）。
 > 前缀配方分档（P0 / P1 / P2）见 §三 E 组实测。
@@ -219,7 +231,7 @@ cd selfdev-framework-demo && mvnd clean package
 # 启动（IDEA 直接跑 SelfDevFrameworkDemoApplication 亦可）
 java -jar target/selfdev-framework-demo-1.0.0.jar
 
-# 全端点冒烟（34 项，期望 PASS=34 FAIL=0）
+# 全端点冒烟（35 项，期望 PASS=35 FAIL=0）
 bash verify-endpoints.sh
 ```
 

@@ -52,6 +52,7 @@ check "E30 tool/jar-shared-first" GET  "$BASE/selfdev/tool/jar-shared-first?plan
 check "E31 tool/jar-shared-second" GET "$BASE/selfdev/tool/jar-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005"
 check "E32 tool/dir-shared-first" GET  "$BASE/selfdev/tool/dir-shared-first?planIds=PLAN_2026001,PLAN_2026002"
 check "E33 tool/dir-shared-second" GET "$BASE/selfdev/tool/dir-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005"
+check "E34 tool/mixed-source"     GET  "$BASE/selfdev/tool/mixed-source?planIds=PLAN_2026001,PLAN_2026002"
 
 echo "----------------------------------------"
 echo "PASS=$PASS FAIL=$FAIL"

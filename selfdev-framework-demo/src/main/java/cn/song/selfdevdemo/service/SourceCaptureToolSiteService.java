@@ -30,4 +30,10 @@ public interface SourceCaptureToolSiteService {
 
     /** 33. 目录态共用入口·后触发者（31 的目录态对照）。 */
     List<Map<String, Object>> directorySharedKeySecond(List<String> planIds);
+
+    /**
+     * 34. 混合来源（**真实现场形状**）：同一方法内先直发一条 SQL、再经业务工具类发第二条，
+     * 而平台内核位于未登记的依赖 JAR 里。
+     */
+    List<Map<String, Object>> mixedSourcePair(List<String> planIds);
 }

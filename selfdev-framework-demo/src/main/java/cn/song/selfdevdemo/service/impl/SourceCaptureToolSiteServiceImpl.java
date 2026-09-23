@@ -3,8 +3,11 @@ package cn.song.selfdevdemo.service.impl;
 import cn.song.selfdevdemo.service.SourceCaptureToolSiteService;
 import cn.song.selfdevdemo.util.PlanTreeQueryBuilder;
 
+import com.corp.platform.SqlKernel;
+
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -105,5 +108,27 @@ public class SourceCaptureToolSiteServiceImpl implements SourceCaptureToolSiteSe
     @Override
     public List<Map<String, Object>> directorySharedKeySecond(List<String> planIds) {
         return PlanTreeQueryBuilder.loadPlansByIds(planIds);
+    }
+
+    /**
+     * 34. 混合来源——<b>真实现场的形状</b>：业务侧全在目录，只有平台内核在依赖 JAR，
+     * 且同一个 Service 方法<b>先自己直发一条 SQL、再调业务工具类发第二条</b>。
+     *
+     * <p>期望落点：第一条＝本方法里 {@code SqlKernel.queryPlansByIds} 那一行；
+     * 第二条＝构建器 {@code loadPlansViaPlatformKernel} 内发 SQL 的那一行。
+     *
+     * <p>实测（内核包<b>不登记</b>档位，见模块 README E 组实测表）：两条都落在本方法内，
+     * 第二条恰好落在<b>「调用构建器」这一行</b>。成因不是 JAR 上顶，而是判定缓存：
+     * 直发那条把「最深目录帧＝本方法」写进了共享 {@code entryKey} 的判定缓存；
+     * 而本方法在第二条的栈上是构建器的<b>祖先帧、必然在场</b> ⇒ 「身份在场」校验形同虚设
+     * ⇒ 主位置被钉在本方法，行号按当前栈现算＝本方法里调用构建器的那一行。
+     * 登记 {@code com.corp.platform.} 让 entryKey 不再是共享帧后，落点恢复正确。
+     */
+    @Override
+    public List<Map<String, Object>> mixedSourcePair(List<String> planIds) {
+        SqlKernel.queryPlansByIds(planIds);
+        List<String> more = new ArrayList<String>(planIds);
+        more.add("PLAN_NOT_EXIST");
+        return PlanTreeQueryBuilder.loadPlansViaPlatformKernel(more);
     }
 }

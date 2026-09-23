@@ -86,6 +86,18 @@ public final class PlanTreeQueryBuilder {
     }
 
     /**
+     * 按编号批查计划，但**委托 JAR 态平台内核**执行（E34 用）。
+     *
+     * <p>形态对齐真实现场：业务工具类在 {@code target/classes}（目录、可被 L1 选为主位置），
+     * 平台引擎在依赖 JAR（L1 判第三方，且通常用户没登记它的包名）。
+     * 此时「首个非框架帧」是引擎的共享帧 ⇒ 多条 SQL 共用同一份判定缓存。
+     */
+    public static List<Map<String, Object>> loadPlansViaPlatformKernel(List<String> planIds) {
+        return com.corp.platform.SqlKernel.queryPlansByIds(
+                planIds);
+    }
+
+    /**
      * 按编号批查计划并挂上成员。
      *
      * <p>目录态的「多调用方共用入口」，与 JAR 版同构，供 E30/E31 的对照档位使用。

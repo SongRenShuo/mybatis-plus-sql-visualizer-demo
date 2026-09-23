@@ -5,6 +5,7 @@ import cn.song.selfdevdemo.entity.ProjectPlanMemberView;
 import cn.song.selfdevdemo.service.SourceCaptureDepthService;
 import cn.song.selfdevdemo.service.SourceCaptureQueryService;
 import cn.song.selfdevdemo.service.SourceCaptureStyleService;
+import cn.song.selfdevdemo.service.SourceCaptureToolSiteService;
 import cn.song.selfdevdemo.service.SourceCaptureWriteService;
 
 import com.corp.meta.PaginResult;
@@ -23,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 自研框架帧过滤前缀测试控制器：27 个用例端点 + 1 个索引端点。
+ * 自研框架帧过滤前缀测试控制器：34 个用例端点 + 1 个索引端点。
  *
  * <p>所有端点都真实执行 SQL，用于在 IDEA 中配合插件的「增强捕获」观察
  * 「源码捕获帧过滤前缀」登记前后的跳转落点差异。逐用例的预期见各 Service 的方法注释，
@@ -47,12 +48,15 @@ public class SelfDevFrameworkController {
     @Autowired
     private SourceCaptureWriteService writeService;
 
+    @Autowired
+    private SourceCaptureToolSiteService toolSiteService;
+
     // ==================== 索引 ====================
 
     /**
      * GET /selfdev/index
      *
-     * <p>返回四组用例的端点清单，便于逐条 curl 或逐条在 IDEA 中触发。
+     * <p>返回五组用例的端点清单，便于逐条 curl 或逐条在 IDEA 中触发。
      */
     @GetMapping("/index")
     public Map<String, Object> index() {
@@ -88,9 +92,21 @@ public class SelfDevFrameworkController {
                 "POST /selfdev/write/update?planId=PLAN_2026005&projectName=quality-trace-updated",
                 "POST /selfdev/write/delete?planId=PLAN_NOT_EXIST",
                 "POST /selfdev/write/batch-update?planIds=PLAN_2026001,PLAN_2026002&status=1"));
+        result.put("E-执行点在业务工具类", Arrays.asList(
+                "GET  /selfdev/tool/directory-builder?owner=lisi                      ← 目录态对照，期望落构建器两处调用行",
+                "GET  /selfdev/tool/jar-builder?owner=lisi                            ← JAR 态同形态，期望暴露上顶到本 Service",
+                "GET  /selfdev/tool/jar-shared-first?planIds=PLAN_2026001,PLAN_2026002      ← 先触发",
+                "GET  /selfdev/tool/jar-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005 ← 后触发，期望暴露跨文件串位",
+                "GET  /selfdev/tool/dir-shared-first?planIds=PLAN_2026001,PLAN_2026002      ← 32：目录态合流对照，先触发",
+                "GET  /selfdev/tool/dir-shared-second?planIds=PLAN_2026003,PLAN_2026004,PLAN_2026005 ← 33：目录态合流对照，后触发",
+                "GET  /selfdev/tool/mixed-source?planIds=PLAN_2026001,PLAN_2026002  ← 34：业务在目录+内核在 JAR，先直发后经工具类发（真实现场形状）"));
         result.put("前缀登记建议", Arrays.asList(
                 "普通端点：登记 com.corp.engine.",
                 "分页端点（paged / paged-deep）：额外登记 com.corp.meta.",
+                "E 组目录态（28/32/33）：登记 cn.song.selfdevdemo.kernel.",
+                "E 组 JAR 态（29/30/31）：登记 com.corp.platform.（登记与不登记，落点都停在 Service——这正是待查项）",
+                "E 组混合来源（34）：不登记 com.corp.platform. 时第二条会落到「调用工具类」那一行；"
+                        + "登记后即恢复正确 —— 共享 entryKey 是这一现象的开关",
                 "切勿登记业务包 cn.song.selfdevdemo.（会把真实业务帧一并跳过）"));
         return result;
     }
@@ -285,6 +301,56 @@ public class SelfDevFrameworkController {
             @RequestParam(defaultValue = "PLAN_2026001,PLAN_2026002") String planIds,
             @RequestParam(defaultValue = "1") int status) {
         return writeService.batchUpdate(split(planIds), status);
+    }
+
+    // ==================== E 组：执行点在业务工具类 ====================
+
+    /** 28. 目录态构建器（控制组）：SQL 执行点在业务构建类里，期望落该类调用行。 */
+    @GetMapping("/tool/directory-builder")
+    public List<Map<String, Object>> directoryBuilder(
+            @RequestParam(defaultValue = "lisi") String owner) {
+        return toolSiteService.directoryBuilder(owner);
+    }
+
+    /** 29. JAR 态构建器：与 28 逐行同构，唯一差异是构建器与内核来自依赖 JAR。 */
+    @GetMapping("/tool/jar-builder")
+    public List<Map<String, Object>> jarBuilder(@RequestParam(defaultValue = "lisi") String owner) {
+        return toolSiteService.jarBuilder(owner);
+    }
+
+    /** 30. JAR 态共用入口·先触发者（与 31 成对）。 */
+    @GetMapping("/tool/jar-shared-first")
+    public List<Map<String, Object>> jarSharedFirst(
+            @RequestParam(defaultValue = "PLAN_2026001,PLAN_2026002") String planIds) {
+        return toolSiteService.jarSharedKeyFirst(split(planIds));
+    }
+
+    /** 31. JAR 态共用入口·后触发者：预期仍跳到 30 的调用行（跨文件串位）。 */
+    @GetMapping("/tool/jar-shared-second")
+    public List<Map<String, Object>> jarSharedSecond(
+            @RequestParam(defaultValue = "PLAN_2026003,PLAN_2026004,PLAN_2026005") String planIds) {
+        return toolSiteService.jarSharedKeySecond(split(planIds));
+    }
+
+    /** 32. 30 的目录态对照（共用入口在目录里，先触发）。 */
+    @GetMapping("/tool/dir-shared-first")
+    public List<Map<String, Object>> dirSharedFirst(
+            @RequestParam(defaultValue = "PLAN_2026001,PLAN_2026002") String planIds) {
+        return toolSiteService.directorySharedKeyFirst(split(planIds));
+    }
+
+    /** 33. 31 的目录态对照（后触发，观察是否同样落到 32 的调用行）。 */
+    @GetMapping("/tool/dir-shared-second")
+    public List<Map<String, Object>> dirSharedSecond(
+            @RequestParam(defaultValue = "PLAN_2026003,PLAN_2026004,PLAN_2026005") String planIds) {
+        return toolSiteService.directorySharedKeySecond(split(planIds));
+    }
+
+    /** 34. 混合来源：业务在目录、平台内核在 JAR；同一方法先直发 SQL 再经工具类发第二条。 */
+    @GetMapping("/tool/mixed-source")
+    public List<Map<String, Object>> mixedSource(
+            @RequestParam(defaultValue = "PLAN_2026001,PLAN_2026002") String planIds) {
+        return toolSiteService.mixedSourcePair(split(planIds));
     }
 
     private List<String> split(String csv) {

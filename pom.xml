@@ -23,6 +23,13 @@
         <module>jpa-hibernate-demo</module>
         <module>mybatis-plus-kotlin-demo</module>
         <module>multi-orm-demo</module>
+        <!--
+          selfdev-shared-lib 必须先于 selfdev-framework-demo：后者以依赖 JAR 形态引它。
+          注意 IDEA 的 Maven workspace 解析会把该依赖还原成兄弟模块的 target/classes（目录形态），
+          走查「帧来源=JAR」档需先根目录 install、再把本模块在 Maven 面板里 Unload，
+          详见 selfdev-shared-lib/README.md。
+        -->
+        <module>selfdev-shared-lib</module>
         <module>selfdev-framework-demo</module>
     </modules>
 </project>

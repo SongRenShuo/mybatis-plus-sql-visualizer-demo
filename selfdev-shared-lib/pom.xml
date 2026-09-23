@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.6.3</version>
+        <relativePath/>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.corp</groupId>
+    <artifactId>selfdev-shared-lib</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <name>selfdev-shared-lib</name>
+    <description>selfdev-framework-demo 的 JAR 态语料：运行期以依赖 JAR 形态加载的业务构建器与平台内核帧</description>
+
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <java.version>1.8</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <!--
+      刻意不引任何框架：本工程的类要模拟「公司公共库 / 平台内核」这一依赖 JAR，
+      只靠 JDK 的 javax.sql + JDBC 直连，避免依赖传递把 Spring 帧带进对照栈。
+    -->
+
+    <build>
+        <plugins>
+            <!-- 纯 JAR 库，不需要 spring-boot 重打包 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

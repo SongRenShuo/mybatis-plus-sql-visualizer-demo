@@ -92,4 +92,14 @@ public interface HibernateTemplateDemoService {
      * 形态 15：findByNamedQuery（hbm &lt;query&gt; 命名查询，位置参数）。
      */
     List<?> findByNamedQueryLegacy();
+
+    /**
+     * 形态 16：无别名 HQL + 嵌入段限定符位（O-71 用户报障同形）。
+     *
+     * `from WmsDockBooking where warehouseId = ... and updateInfo.createdTime >= ...`
+     * 无别名写法：裸属性 warehouseId 与嵌入段开头的 updateInfo.createdTime
+     * 两条路径——插件 O-71 修复（T-01 裸属性映射 / T-02 嵌入段剥离）前的预览产物
+     * 分别残留属性名与 updateInfo. 前缀，可作回归复现场景。
+     */
+    List<WmsDockBooking> findByNoAliasEmbedded(String warehouseId, LocalDateTime minTime);
 }

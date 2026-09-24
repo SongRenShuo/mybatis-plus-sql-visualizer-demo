@@ -247,4 +247,16 @@ public class HibernateTemplateDemoServiceImpl implements HibernateTemplateDemoSe
         return hibernateTemplate.findByNamedQueryAndNamedParam(
                 "LegacyItem.findLowStockHql", "threshold", 20);
     }
+
+    // ------------------------------------------------------------------
+    // 形态 16：无别名 HQL + 嵌入段限定符位（O-71 用户报障同形）
+    //  - 无别名写法 → 裸属性 warehouseId（T-01 裸属性映射）
+    //  - 嵌入段开头的 updateInfo.createdTime（T-02 嵌入段限定符位剥离）
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<WmsDockBooking> findByNoAliasEmbedded(String warehouseId, LocalDateTime minTime) {
+        String hql = "from WmsDockBooking where warehouseId = :warehouseId and updateInfo.createdTime >= :minTime";
+        return commonDao.findByQuery(hql, "warehouseId", warehouseId, "minTime", minTime);
+    }
 }

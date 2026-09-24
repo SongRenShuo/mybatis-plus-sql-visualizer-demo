@@ -125,4 +125,18 @@ public class HibernateTemplateController {
     public List<?> findByNamedQueryLegacy() {
         return hibernateTemplateDemoService.findByNamedQueryLegacy();
     }
+
+    /**
+     * 形态 16：无别名 HQL + 嵌入段限定符位（O-71 用户报障同形）
+     * GET /jpa/hib/byNoAliasEmbedded?warehouseId=WH001&minTime=2026-01-01T00:00:00
+     */
+    @GetMapping("/byNoAliasEmbedded")
+    public List<WmsDockBooking> byNoAliasEmbedded(
+            @RequestParam String warehouseId,
+            @RequestParam(required = false) String minTime) {
+        LocalDateTime min = minTime == null || minTime.isEmpty()
+                ? LocalDateTime.now().minusDays(1)
+                : LocalDateTime.parse(minTime);
+        return hibernateTemplateDemoService.findByNoAliasEmbedded(warehouseId, min);
+    }
 }

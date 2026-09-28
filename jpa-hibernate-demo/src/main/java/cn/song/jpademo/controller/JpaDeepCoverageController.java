@@ -2,8 +2,10 @@ package cn.song.jpademo.controller;
 
 import cn.song.jpademo.dto.UserLiteDTO;
 import cn.song.jpademo.entity.UserEntity;
+import cn.song.jpademo.entity.WmsDockBooking;
 import cn.song.jpademo.service.JpaDeepCoverageService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -89,5 +92,26 @@ public class JpaDeepCoverageController {
     @GetMapping("/liteProjection")
     public List<UserLiteDTO> liteProjection(@RequestParam(defaultValue = "1") Integer status) {
         return jpaDeepCoverageService.liteProjection(status);
+    }
+
+    /**
+     * Criteria 嵌入段路径（root.get("updateInfo").get("createdTime") 穿透 @Embedded）
+     * GET /jpa/deep/criteriaEmbedded?warehouseId=WH001
+     */
+    @GetMapping("/criteriaEmbedded")
+    public List<WmsDockBooking> criteriaEmbeddedPath(@RequestParam(defaultValue = "WH001") String warehouseId) {
+        return jpaDeepCoverageService.criteriaEmbeddedPath(warehouseId);
+    }
+
+    /**
+     * Specification 嵌入段路径组合条件
+     * GET /jpa/deep/specEmbedded?warehouseId=WH001&minTime=2020-01-01T00:00:00
+     */
+    @GetMapping("/specEmbedded")
+    public List<WmsDockBooking> specificationEmbeddedPath(
+            @RequestParam(defaultValue = "WH001") String warehouseId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime minTime) {
+        return jpaDeepCoverageService.specificationEmbeddedPath(warehouseId,
+                minTime == null ? LocalDateTime.now().minusDays(1) : minTime);
     }
 }

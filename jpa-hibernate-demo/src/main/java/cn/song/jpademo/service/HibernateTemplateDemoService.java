@@ -102,4 +102,12 @@ public interface HibernateTemplateDemoService {
      * 分别残留属性名与 updateInfo. 前缀，可作回归复现场景。
      */
     List<WmsDockBooking> findByNoAliasEmbedded(String warehouseId, LocalDateTime minTime);
+
+    /**
+     * 形态 17：HQL UPDATE SET 子句嵌入段限定符位。
+     *
+     * `update WmsDockBooking booking set booking.updateInfo.createdTime = ?2 where booking.id = ?1`
+     * SET 位与 WHERE 位的嵌入段路径此前均无用例（形态 6 的 SET 只落普通属性）。
+     */
+    int updateEmbeddedCreatedTime(Long id, LocalDateTime createdTime);
 }

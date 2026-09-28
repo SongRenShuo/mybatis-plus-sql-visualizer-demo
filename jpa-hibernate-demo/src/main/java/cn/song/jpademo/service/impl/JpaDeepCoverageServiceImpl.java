@@ -3,7 +3,9 @@ package cn.song.jpademo.service.impl;
 import cn.song.jpademo.dto.UserLiteDTO;
 import cn.song.jpademo.entity.OrderEntity;
 import cn.song.jpademo.entity.UserEntity;
+import cn.song.jpademo.entity.WmsDockBooking;
 import cn.song.jpademo.repository.UserRepository;
+import cn.song.jpademo.repository.WmsDockBookingRepository;
 import cn.song.jpademo.service.JpaDeepCoverageService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,7 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Subquery;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +38,9 @@ public class JpaDeepCoverageServiceImpl implements JpaDeepCoverageService {
 
     @Resource
     private UserRepository userRepository;
+
+    @Resource
+    private WmsDockBookingRepository wmsDockBookingRepository;
 
     @PersistenceContext
     private EntityManager em;
@@ -156,5 +162,31 @@ public class JpaDeepCoverageServiceImpl implements JpaDeepCoverageService {
                         cb.equal(root.get("status"), status),
                         cb.isNotNull(deptJoin.get("id"))));
         return em.createQuery(cq).getResultList();
+    }
+
+    /**
+     * Criteria 嵌入段路径：root.get("updateInfo").get("createdTime") 穿透 @Embedded 对象
+     */
+    @Override
+    public List<WmsDockBooking> criteriaEmbeddedPath(String warehouseId) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<WmsDockBooking> cq = cb.createQuery(WmsDockBooking.class);
+        Root<WmsDockBooking> root = cq.from(WmsDockBooking.class);
+        cq.select(root).where(cb.and(
+                cb.equal(root.get("warehouseId"), warehouseId),
+                cb.isNotNull(root.get("updateInfo").get("createdTime"))));
+        return em.createQuery(cq).getResultList();
+    }
+
+    /**
+     * Specification 嵌入段路径：where warehouse_id = ? and created_time &gt;= ?
+     */
+    @Override
+    public List<WmsDockBooking> specificationEmbeddedPath(String warehouseId, LocalDateTime minTime) {
+        org.springframework.data.jpa.domain.Specification<WmsDockBooking> eqWarehouse = (root, query, cb) ->
+                cb.equal(root.get("warehouseId"), warehouseId);
+        org.springframework.data.jpa.domain.Specification<WmsDockBooking> createdAfter = (root, query, cb) ->
+                cb.greaterThanOrEqualTo(root.get("updateInfo").get("createdTime"), minTime);
+        return wmsDockBookingRepository.findAll(eqWarehouse.and(createdAfter));
     }
 }

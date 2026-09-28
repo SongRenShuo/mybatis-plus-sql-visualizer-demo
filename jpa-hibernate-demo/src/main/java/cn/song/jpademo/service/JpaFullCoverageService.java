@@ -42,4 +42,15 @@ public interface JpaFullCoverageService {
      * @Query 补形态：构造器表达式 SELECT NEW dto + createNativeQuery 联动
      */
     Map<String, Object> queryAnnotationExt();
+
+    /**
+     * @Embedded 嵌入段补形态：派生查询属性路径穿透内嵌对象
+     * （findByUpdateInfoCreatedTimeAfter → where created_time &gt; ?）
+     */
+    Map<String, Object> derivedQueryEmbedded(java.time.LocalDateTime time);
+
+    /**
+     * @Embedded 嵌入段补形态：@Query SELECT 投影 + ORDER BY 嵌入段路径
+     */
+    List<java.time.LocalDateTime> queryAnnotationEmbedded(String warehouseId);
 }

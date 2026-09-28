@@ -139,4 +139,16 @@ public class HibernateTemplateController {
                 : LocalDateTime.parse(minTime);
         return hibernateTemplateDemoService.findByNoAliasEmbedded(warehouseId, min);
     }
+
+    /**
+     * 形态 17：HQL UPDATE SET 子句嵌入段限定符位
+     * POST /jpa/hib/touchEmbedded?id=1&createdTime=2026-01-01T00:00:00
+     */
+    @PostMapping("/touchEmbedded")
+    public Map<String, Object> touchEmbedded(
+            @RequestParam Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdTime) {
+        int rows = hibernateTemplateDemoService.updateEmbeddedCreatedTime(id, createdTime);
+        return java.util.Collections.singletonMap("updated", rows);
+    }
 }

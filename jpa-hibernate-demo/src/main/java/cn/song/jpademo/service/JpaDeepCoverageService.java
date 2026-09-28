@@ -2,7 +2,9 @@ package cn.song.jpademo.service;
 
 import cn.song.jpademo.dto.UserLiteDTO;
 import cn.song.jpademo.entity.UserEntity;
+import cn.song.jpademo.entity.WmsDockBooking;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -49,4 +51,14 @@ public interface JpaDeepCoverageService {
      * DTO 投影复用（UserLiteDTO 构造器表达式配套深水区查询）
      */
     List<UserLiteDTO> liteProjection(Integer status);
+
+    /**
+     * Criteria 嵌入段路径：root.get("updateInfo").get("createdTime") 穿透 @Embedded 对象
+     */
+    List<WmsDockBooking> criteriaEmbeddedPath(String warehouseId);
+
+    /**
+     * Specification 嵌入段路径：root.get("updateInfo").get("createdTime") 组合条件
+     */
+    List<WmsDockBooking> specificationEmbeddedPath(String warehouseId, LocalDateTime minTime);
 }

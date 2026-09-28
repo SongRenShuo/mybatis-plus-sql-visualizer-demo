@@ -5,6 +5,7 @@ import cn.song.jpademo.entity.LegacyItem;
 import cn.song.jpademo.entity.UserEntity;
 import cn.song.jpademo.repository.LegacyItemRepository;
 import cn.song.jpademo.repository.UserRepository;
+import cn.song.jpademo.repository.WmsDockBookingRepository;
 import cn.song.jpademo.service.JpaFullCoverageService;
 import org.springframework.orm.hibernate5.HibernateTemplate;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,9 @@ public class JpaFullCoverageServiceImpl implements JpaFullCoverageService {
 
     @Resource
     private LegacyItemRepository legacyItemRepository;
+
+    @Resource
+    private WmsDockBookingRepository wmsDockBookingRepository;
 
     /**
      * createNamedQuery：实体 @NamedQuery（UserEntity.*）与 hbm &lt;query&gt;（LegacyItem.*）
@@ -143,5 +147,24 @@ public class JpaFullCoverageServiceImpl implements JpaFullCoverageService {
         result.put("liteUsers", lite);
         result.put("nativeTuples", queryNativePositional(18));
         return result;
+    }
+
+    /**
+     * @Embedded 嵌入段派生查询：findByUpdateInfoCreatedTimeAfter
+     * 属性路径 updateInfo.createdTime 穿透 @Embedded 对象（UpdateInfo）
+     */
+    @Override
+    public Map<String, Object> derivedQueryEmbedded(java.time.LocalDateTime time) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("createdAfter", wmsDockBookingRepository.findByUpdateInfoCreatedTimeAfter(time));
+        return result;
+    }
+
+    /**
+     * @Query SELECT 投影嵌入段 + ORDER BY 嵌入段路径
+     */
+    @Override
+    public List<java.time.LocalDateTime> queryAnnotationEmbedded(String warehouseId) {
+        return wmsDockBookingRepository.findUpdateCreatedTimesByWarehouse(warehouseId);
     }
 }

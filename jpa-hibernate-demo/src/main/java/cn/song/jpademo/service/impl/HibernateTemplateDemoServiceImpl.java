@@ -259,4 +259,23 @@ public class HibernateTemplateDemoServiceImpl implements HibernateTemplateDemoSe
         String hql = "from WmsDockBooking where warehouseId = :warehouseId and updateInfo.createdTime >= :minTime";
         return commonDao.findByQuery(hql, "warehouseId", warehouseId, "minTime", minTime);
     }
+
+    // ------------------------------------------------------------------
+    // 形态 17：HQL UPDATE SET 子句嵌入段限定符位
+    //  - SET 位 booking.updateInfo.createdTime（形态 6 的 SET 只落普通属性）
+    //  - WHERE 位普通属性 id，对照 SET 位的嵌入段路径
+    // ------------------------------------------------------------------
+
+    @Override
+    @Transactional(transactionManager = "hibernateTransactionManager")
+    public int updateEmbeddedCreatedTime(Long id, LocalDateTime createdTime) {
+        // bulkUpdate(String, Object...) 变参绑定从 0 起步，与 ?1/?2 编号占位不兼容
+        // （实测抛 "Could not locate ordinal parameter [0], expecting one of [1, 2]"），
+        // 与 iterateLegacyItems 同坑：改 executeWithNativeSession 回调内显式按序号绑定
+        return hibernateTemplate.executeWithNativeSession(session -> session.createQuery(
+                        "update WmsDockBooking booking set booking.updateInfo.createdTime = ?2 where booking.id = ?1")
+                .setParameter(1, id)
+                .setParameter(2, createdTime)
+                .executeUpdate());
+    }
 }

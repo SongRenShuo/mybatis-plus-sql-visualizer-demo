@@ -110,4 +110,23 @@ public interface HibernateTemplateDemoService {
      * SET 位与 WHERE 位的嵌入段路径此前均无用例（形态 6 的 SET 只落普通属性）。
      */
     int updateEmbeddedCreatedTime(Long id, LocalDateTime createdTime);
+
+    /**
+     * 形态 18：带 FROM 的 HQL DELETE + 嵌入段路径。
+     *
+     * `delete from WmsDockBooking booking where booking.updateInfo.createdTime &lt; ?1`
+     * JPQL 标准 DELETE 形态（带 FROM）：WHERE 位为嵌入段路径
+     * booking.updateInfo.createdTime，DELETE 位嵌入段列名映射的重点语料
+     * （与形态 7 的普通属性 DELETE 对照）。
+     */
+    int deleteByEmbeddedCreatedTimeBefore(LocalDateTime maxTime);
+
+    /**
+     * 形态 19：带 FROM 的 SELECT + 嵌入段路径与普通属性混合（回归保护语料）。
+     *
+     * `select booking from WmsDockBooking booking where booking.updateInfo.createdTime &gt;= ?1 and booking.warehouseId = ?2`
+     * 带完整 FROM 的常规形态：WHERE 位嵌入段（updateInfo.createdTime）与
+     * 普通属性（warehouseId）混合，验证嵌入段映射修复不影响既有普通属性映射。
+     */
+    List<WmsDockBooking> findByEmbeddedCreatedTimeAndWarehouse(String warehouseId, LocalDateTime minTime);
 }

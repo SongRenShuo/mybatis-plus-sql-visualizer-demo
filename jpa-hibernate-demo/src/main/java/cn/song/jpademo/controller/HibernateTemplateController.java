@@ -151,4 +151,26 @@ public class HibernateTemplateController {
         int rows = hibernateTemplateDemoService.updateEmbeddedCreatedTime(id, createdTime);
         return java.util.Collections.singletonMap("updated", rows);
     }
+
+    /**
+     * 形态 18：带 FROM 的 HQL DELETE + 嵌入段路径
+     * POST /jpa/hib/deleteByEmbeddedCreatedTime?maxTime=2026-01-01T00:00:00
+     */
+    @PostMapping("/deleteByEmbeddedCreatedTime")
+    public Map<String, Object> deleteByEmbeddedCreatedTime(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime maxTime) {
+        int rows = hibernateTemplateDemoService.deleteByEmbeddedCreatedTimeBefore(maxTime);
+        return java.util.Collections.singletonMap("deleted", rows);
+    }
+
+    /**
+     * 形态 19：带 FROM 的 SELECT + 嵌入段路径与普通属性混合
+     * GET /jpa/hib/byEmbeddedCreatedTimeAndWarehouse?warehouseId=WH001&minTime=2026-01-01T00:00:00
+     */
+    @GetMapping("/byEmbeddedCreatedTimeAndWarehouse")
+    public List<WmsDockBooking> byEmbeddedCreatedTimeAndWarehouse(
+            @RequestParam String warehouseId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime minTime) {
+        return hibernateTemplateDemoService.findByEmbeddedCreatedTimeAndWarehouse(warehouseId, minTime);
+    }
 }

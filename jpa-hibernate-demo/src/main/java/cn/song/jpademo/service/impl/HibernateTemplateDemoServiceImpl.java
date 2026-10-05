@@ -278,4 +278,37 @@ public class HibernateTemplateDemoServiceImpl implements HibernateTemplateDemoSe
                 .setParameter(2, createdTime)
                 .executeUpdate());
     }
+
+    // ------------------------------------------------------------------
+    // 形态 18：带 FROM 的 HQL DELETE + 嵌入段路径
+    //  - `delete from WmsDockBooking booking where booking.updateInfo.createdTime < ?1`
+    //  - JPQL 标准 DELETE 形态（带 FROM）：WHERE 位嵌入段路径
+    //    booking.updateInfo.createdTime（T-02 剥离），与形态 7 普通属性 DELETE 对照
+    // ------------------------------------------------------------------
+
+    @Override
+    @Transactional(transactionManager = "hibernateTransactionManager")
+    public int deleteByEmbeddedCreatedTimeBefore(LocalDateTime maxTime) {
+        // 形态 17 同款写法：executeWithNativeSession 回调内显式按序号绑定
+        // （HQL 里 ?1 对应 setParameter 首参索引 1）
+        return hibernateTemplate.executeWithNativeSession(session -> session.createQuery(
+                        "delete from WmsDockBooking booking where booking.updateInfo.createdTime < ?1")
+                .setParameter(1, maxTime)
+                .executeUpdate());
+    }
+
+    // ------------------------------------------------------------------
+    // 形态 19：带 FROM 的 SELECT + 嵌入段路径与普通属性混合（回归保护语料）
+    //  - WHERE 位嵌入段 booking.updateInfo.createdTime 与普通属性 booking.warehouseId 混合
+    //  - 带完整 FROM 的常规形态：验证嵌入段映射修复不影响既有普通属性映射
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<WmsDockBooking> findByEmbeddedCreatedTimeAndWarehouse(String warehouseId, LocalDateTime minTime) {
+        return hibernateTemplate.executeWithNativeSession(session -> session.createQuery(
+                        "select booking from WmsDockBooking booking where booking.updateInfo.createdTime >= ?1 and booking.warehouseId = ?2")
+                .setParameter(1, minTime)
+                .setParameter(2, warehouseId)
+                .getResultList());
+    }
 }

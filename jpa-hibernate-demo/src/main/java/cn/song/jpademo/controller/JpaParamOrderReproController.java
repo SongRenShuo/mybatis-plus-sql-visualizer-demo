@@ -22,11 +22,12 @@ import java.util.List;
  * <p><b>静态预览验证步骤</b>（装修复版插件后）：
  * <ol>
  *   <li>光标放在 {@link #occupyEmptyTcLocation} 的 createQuery 调用上触发 SQL 预览面板</li>
- *   <li>参数面板应 5 行（locationStatus 只一行）：warehouseId / locationStatus / zoneCode /
- *       emptyFullDegree / positionType，值分别默认展示；warehouseId 手填 1</li>
- *   <li>渲染 SQL 逐位验收：warehouse_id = 1（数值不带引号）、status = 'E'、
- *       zone.code = 'KQ13'、full_degree = '0'、agv_position_type = 'TC'，顺序与 HQL 条件一致</li>
- *   <li>面板「表：」应显示 WMS_LOCATION（旧版误显 long）</li>
+ *   <li>参数面板应 5 行（locationStatus 只一行）：locationStatus / zoneCode / emptyFullDegree /
+ *       positionType 四行应<b>自动预填代码里的常量值</b>（E / KQ13 / 0 / TC）；
+ *       warehouseId 是方法变量、保持空待手填 1</li>
+ *   <li>渲染 SQL 逐位验收（只需手填 warehouseId 后）：warehouse_id = 1（数值不带引号）、
+ *       status = 'E'、zone.code = 'KQ13'、full_degree = '0'、agv_position_type = 'TC'</li>
+ *   <li>面板「表：」应显示 WMS_LOCATION</li>
  *   <li>参数区尾部应有灰字提示：同名参数多次设置（运行时以最后一次为准）：locationStatus</li>
  *   <li>「复制可执行 SQL」与面板渲染逐字一致</li>
  * </ol>

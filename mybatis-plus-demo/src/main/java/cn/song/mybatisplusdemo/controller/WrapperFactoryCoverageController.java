@@ -71,4 +71,12 @@ public class WrapperFactoryCoverageController {
     public Map<String, Object> mapperMore(String keyword) {
         return wrapperFactoryCoverageService.crudMapperMoreForms(keyword);
     }
+
+    /**
+     * 裸工厂链 + 带参 exists 子查询（T-ExistsChainTerminal 复现用例）
+     */
+    @GetMapping("/bareChainExists")
+    public Map<String, Object> bareChainExists(String username) {
+        return wrapperFactoryCoverageService.listByBareFactoryChainExists(username);
+    }
 }

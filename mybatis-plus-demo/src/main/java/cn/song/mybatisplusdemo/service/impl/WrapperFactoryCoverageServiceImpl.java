@@ -14,6 +14,7 @@ import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
 import com.baomidou.mybatisplus.extension.toolkit.Db;
 import com.baomidou.mybatisplus.extension.toolkit.SimpleQuery;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.util.HashMap;
@@ -156,6 +157,67 @@ public class WrapperFactoryCoverageServiceImpl implements WrapperFactoryCoverage
 
         result.put("page", userMapper.selectPage(new Page<>(1, 10),
                 new QueryWrapper<User>().eq("status", 1).orderByAsc("id")));
+        return result;
+    }
+
+    /**
+     * 裸工厂链 + 带参 exists 子查询（T-ExistsChainTerminal 复现用例，2026-10-07）
+     *
+     * 复现的缺陷形态：`Wrappers.<User>lambdaQuery(...)` 链**直接作 mapper 方法实参**（链内没有
+     * one/list/count/page 等真终结点）时，带参 `exists(...)` 会被插件定位层的终结点判定误判为链终结点
+     * ——`exists` 在 MP 里同时是条件方法（`Join.exists(String, Object...)`）与链终结点（`ChainQuery.exists()` 无参）。
+     *
+     * 静态预览验收清单（光标落在各 `Wrappers.<User>lambdaQuery` 链上触发预览）：
+     *   ① 裸工厂链形态（本用例的缺陷形态）：应含
+     *      `WHERE username LIKE ? AND EXISTS (select 1 from t_order o where o.user_id = user.id) AND status = 1`
+     *      ——修复前为 `SELECT EXISTS (SELECT ... WHERE status = 1)`：EXISTS 条件整条丢失，且整链被误包
+     *   ② 裸工厂链 + 分页消费（T-M25.2 用户报障原始形态 `service.page(page, wrapper)`）：与 ① 同 SQL
+     *      （分页终结点在 service 侧，wrapper 链内同样没有真终结点，缺陷同源）
+     *   ③ 变量声明形态（对照）：修复前后均正确，与 ①② 产出同一份 SQL
+     *   ④ 裸工厂链 notExists（对照）：修复前后均正确（`notExists` 不在终结点名单，不对称是有意为之）
+     *
+     * 注：`var w = Wrappers.<User>lambdaQuery(...)...exists(...)` 形态同属修复面（曾因同一名单被拒为
+     * wrapper 变量），但本 demo 模块为 Java 8（maven.compiler.source=8）无法表达 `var`——
+     * 该形态的回归由插件侧金样矩阵 S95 覆盖。
+     *
+     * 运行时：GET /config/factory/bareChainExists?username=admin
+     */
+    @Override
+    public Map<String, Object> listByBareFactoryChainExists(String username) {
+        Map<String, Object> result = new HashMap<>();
+
+        // ① 缺陷形态：裸工厂链直接作实参，链内无真终结点
+        result.put("bareFactoryChain", userMapper.selectList(
+                Wrappers.<User>lambdaQuery(User.class)
+                        .like(StringUtils.hasText(username), User::getUsername, username)
+                        .exists("select 1 from t_order o where o.user_id = user.id")
+                        .eq(User::getStatus, 1)
+                        .orderByDesc(User::getId)));
+
+        // ② 裸工厂链 + 分页消费（T-M25.2 用户报障原始形态：wrapper 是裸工厂链、分页终结点在 service 侧）
+        result.put("bareFactoryChainPaged", userMapper.selectPage(new Page<>(1, 10),
+                Wrappers.<User>lambdaQuery(User.class)
+                        .like(StringUtils.hasText(username), User::getUsername, username)
+                        .exists("select 1 from t_order o where o.user_id = user.id")
+                        .eq(User::getStatus, 1)
+                        .orderByDesc(User::getId)));
+
+        // ③ 变量声明形态（对照）
+        LambdaQueryWrapper<User> variableWrapper = Wrappers.<User>lambdaQuery(User.class)
+                .like(StringUtils.hasText(username), User::getUsername, username)
+                .exists("select 1 from t_order o where o.user_id = user.id")
+                .eq(User::getStatus, 1)
+                .orderByDesc(User::getId);
+        result.put("variableDeclared", userMapper.selectList(variableWrapper));
+
+        // ④ notExists 对照：不在终结点名单，本就不受影响
+        result.put("bareFactoryChainNotExists", userMapper.selectList(
+                Wrappers.<User>lambdaQuery(User.class)
+                        .like(StringUtils.hasText(username), User::getUsername, username)
+                        .notExists("select 1 from t_order o where o.user_id = user.id")
+                        .eq(User::getStatus, 1)
+                        .orderByDesc(User::getId)));
+
         return result;
     }
 }

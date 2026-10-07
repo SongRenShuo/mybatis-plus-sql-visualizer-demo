@@ -97,6 +97,7 @@ src/main/resources/
 | eqSql/inSql/notInSql 等 SQL 片段直拼（eqSql 需 MP ≥ 3.5.6）、allEq/not/nested/select 排除、链式、IService | `WrapperExtServiceImpl` |
 | Wrappers 8 工厂形态、ChainWrappers 终结点（list/one/count/exists/page）、Db kit 静态 CRUD、SimpleQuery（keyMap/map/list）、ActiveRecord（Model） | `WrapperFactoryCoverageServiceImpl` |
 | selectMapsPage/exists/deleteByMap/update(wrapper) 等 CRUD 补形态 | 同上 |
+| **裸工厂链 + 带参 `exists` 子查询**（T-ExistsChainTerminal 复现用例）：裸工厂链 / 分页消费 / 变量声明对照 / `notExists` 对照四形态应产出同一份 SQL | `WrapperFactoryCoverageServiceImpl#listByBareFactoryChainExists`（`/config/factory/bareChainExists`） |
 | JdbcTemplate / NamedParameterJdbcTemplate 字符串 SQL：位置参数、命名参数 `:name`、StringBuilder 动态拼接、IN 子句、多表 JOIN、三表聚合分页、EXISTS/IN 子查询 | `JdbcTemplateServiceImpl` |
 | 自研 DAO 壳 `DbHelper` 的 queryForList/queryForMap/insert/update/delete/batchUpdate（Map 参数与变长实参双形态） | `WrappedJdbcServiceImpl` + `common/DbHelper` |
 | @KeySequence/@EnumValue/@OrderBy 实体注解 | `SysConfig` / `ConfigTypeEnum` |

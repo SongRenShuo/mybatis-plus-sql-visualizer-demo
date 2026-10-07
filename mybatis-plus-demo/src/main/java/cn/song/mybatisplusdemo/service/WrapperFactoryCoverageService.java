@@ -43,4 +43,12 @@ public interface WrapperFactoryCoverageService {
      * BaseMapper CRUD 补形态：selectMapsPage/selectCount/exists/update(wrapper)/remove(wrapper)/removeByMap
      */
     Map<String, Object> crudMapperMoreForms(String keyword);
+
+    /**
+     * 裸工厂链 + 带参 exists 子查询（T-ExistsChainTerminal 复现用例，2026-10-07）
+     *
+     * 四种写法产出同一份 SQL，用于对照插件的静态预览：裸工厂链 / var 声明 / 变量声明（对照）/
+     * 裸工厂链 notExists（对照）。详见实现类 KDoc 的验收清单。
+     */
+    Map<String, Object> listByBareFactoryChainExists(String username);
 }

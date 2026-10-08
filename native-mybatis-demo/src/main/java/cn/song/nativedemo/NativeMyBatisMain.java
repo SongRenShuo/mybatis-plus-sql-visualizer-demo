@@ -23,16 +23,27 @@ public final class NativeMyBatisMain {
     public static void main(String[] args) throws Exception {
         try (InputStream in = Resources.getResourceAsStream("mybatis-config.xml")) {
             SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(in);
-            try (SqlSession session = factory.openSession()) {
-                NativeUserMapper mapper = session.getMapper(NativeUserMapper.class);
-                List<NativeUser> users = mapper.selectByStatus(1);
-                System.out.println("selectByStatus(1) -> " + users.size() + " rows");
-                for (NativeUser user : users) {
-                    System.out.println("  " + user);
-                }
-                int count = mapper.countByStatus(1);
-                System.out.println("countByStatus(1) -> " + count);
+            // 首轮 SQL（进程初始、无 agent）：基线
+            runQueries(factory, "round-1");
+            // 验收 3.27「对已启动应用 attach」：保持进程存活 45s，供沙盒在应用运行期间开启
+            // 增强捕获（settings-rescan 扫描在跑 JVM 进程主动 attach，无需重启应用）。
+            System.out.println("== 保持存活 45s 供 attach 复验… 请此时在插件设置开启增强捕获 ==");
+            Thread.sleep(45_000L);
+            // 次轮 SQL（attach 后）：验证存量进程被挂载后下一次执行即被捕获
+            runQueries(factory, "round-2");
+        }
+    }
+
+    private static void runQueries(SqlSessionFactory factory, String tag) {
+        try (SqlSession session = factory.openSession()) {
+            NativeUserMapper mapper = session.getMapper(NativeUserMapper.class);
+            List<NativeUser> users = mapper.selectByStatus(1);
+            System.out.println("[" + tag + "] selectByStatus(1) -> " + users.size() + " rows");
+            for (NativeUser user : users) {
+                System.out.println("  " + user);
             }
+            int count = mapper.countByStatus(1);
+            System.out.println("[" + tag + "] countByStatus(1) -> " + count);
         }
     }
 

@@ -31,5 +31,7 @@
         -->
         <module>selfdev-shared-lib</module>
         <module>selfdev-framework-demo</module>
+        <!-- 原生 MyBatis（mybatis-config.xml 单配置）语料：插件 3.25「自动注入拦截器」验收宿主 -->
+        <module>native-mybatis-demo</module>
     </modules>
 </project>

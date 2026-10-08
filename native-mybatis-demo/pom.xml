@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>cn.song</groupId>
+  <artifactId>native-mybatis-demo</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+  <name>native-mybatis-demo</name>
+  <description>原生 MyBatis（非 Spring Boot）语料：mybatis-config.xml 单配置形态，供插件「自动注入源码捕获拦截器」的 3.25 验收</description>
+
+  <!-- 形态要点（插件侧 ProjectTypeDetector 判据）：
+       - 无 @SpringBootApplication 类（原生启动：SqlSessionFactoryBuilder 直读 mybatis-config.xml）；
+       - classpath 含 org.apache.ibatis.session.SqlSessionFactory → 判 MYBATIS_NATIVE；
+       - 注入生成物 SqlSourceInterceptor implements com.baomidou...InnerInterceptor（MP 自由定义），
+         故依赖里同时带 mybatis-plus-extension（否则生成件编译不过）；
+       - resources 根恰一份 mybatis-config.xml（多处 config 为注入 fail-closed 边界，勿再添第二份）。 -->
+  <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.mybatis</groupId>
+      <artifactId>mybatis</artifactId>
+      <version>3.5.19</version>
+    </dependency>
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-extension</artifactId>
+      <version>3.5.15</version>
+    </dependency>
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>8.0.33</version>
+    </dependency>
+  </dependencies>
+</project>

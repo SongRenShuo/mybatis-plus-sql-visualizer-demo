@@ -64,6 +64,22 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+
+        <!-- T-Embedded G3 语料：MP @TableName + jakarta @Embedded 混合实体
+             （3.0.0 为 Java 8 字节码 major 52；3.1.0 是 major 55 与 JDK8 编译冲突，勿升） -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+
+        <!-- T-PgWeave 织入验收：PG 运行 profile（application-pg.yml，runtime 即可） -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.4</version>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
     <build>

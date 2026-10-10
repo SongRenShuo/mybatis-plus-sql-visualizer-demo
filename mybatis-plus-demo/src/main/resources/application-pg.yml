@@ -1,0 +1,11 @@
+# PG 数据源 profile：插件 T-PgWeave（PostgreSQL 语句面织入）attach 验收用
+#
+# 用法：PG 侧建库后以 --spring.profiles.active=pg 启动；
+# attach 增强捕获后走 /logFeed/heartbeat（SELECT 1，不依赖业务表）即可验证事件到达，
+# /logFeed/n1、/pageSim/** 需先按 db/schema.sql 建 PG 兼容表。
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/mp_demo
+    username: postgres
+    password: postgres

@@ -180,3 +180,15 @@ INSERT INTO `wkfl_solicit` (`solicit_id`, `proc_id`) VALUES
 INSERT INTO `core_apply_duties` (`apply_id`, `policy_name`) VALUES
 ('A001', '非创业担保政策'),
 ('A002', '创业担保贷款政策');
+
+-- 混合注解实体（T-Embedded G3 语料）：值对象列展平（theme/notify_email/max_retry），无 setting 伪列
+DROP TABLE IF EXISTS `t_mixed_profile`;
+CREATE TABLE `t_mixed_profile` (
+    `id`           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `name`         VARCHAR(64)  DEFAULT NULL COMMENT '名称',
+    `theme`        VARCHAR(32)  DEFAULT NULL COMMENT '界面主题（嵌入值对象展平列）',
+    `notify_email` VARCHAR(128) DEFAULT NULL COMMENT '通知邮箱（嵌入值对象展平列）',
+    `max_retry`    INT          DEFAULT NULL COMMENT '最大重试次数（嵌入值对象展平列）',
+    `remark`       VARCHAR(255) DEFAULT NULL COMMENT '备注',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '混合注解实体（静态预览语料）';

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  通用 XML 内嵌 SQL 兜底语料（插件 T-XmlInlineSql/O-72）：根元素 legacyBlock，
+  叶子标签为**纯文本**（非 CDATA）REPLACE 开头语句——验证首词认领词表含 REPLACE。
+-->
+<legacyBlock module="config-cache">
+    <flush>
+        REPLACE INTO sys_config (config_key, config_value) VALUES ('cache.version', 'v2')
+    </flush>
+</legacyBlock>

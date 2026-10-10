@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  通用 XML 内嵌 SQL 兜底语料（插件 T-XmlInlineSql/O-72）：根元素 reportView（异根、
+  非 mapper/pages/hbm 认领名），叶子标签 CDATA 内 WITH 开头的 CTE 查询——
+  预期兜底通道认领（gutter 图标 + 预览直显，? 占位符参数表）。
+-->
+<reportView title="用户下单量 Top 榜">
+    <query id="topUserOrders">
+        <dataSource>
+            <![CDATA[
+                WITH recent AS (
+                    SELECT user_id, COUNT(*) AS cnt
+                    FROM t_order
+                    WHERE create_time >= ?
+                    GROUP BY user_id
+                )
+                SELECT u.username, r.cnt
+                FROM recent r
+                JOIN user u ON u.id = r.user_id
+                ORDER BY r.cnt DESC
+            ]]>
+        </dataSource>
+    </query>
+</reportView>

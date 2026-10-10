@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RFListPage id="rfAsnListPage" title="rfAsnListPage" mainEntrance="true">
+    <RFSearchUI id="searchCode" text="searchCode" onFoucs="true"/>
+    <RFTable id="list" rowAction="wmsAsnRfManager.selectCustomerAsn">
+        <RFTh id="id" title="id" width="50" enumType="" hidden="true"/>
+        <DataSource type="HQL">
+            <statement><![CDATA[
+                SELECT * from LegacyItem
+            ]]></statement>
+        </DataSource>
+    </RFTable>
+</RFListPage>

@@ -97,4 +97,14 @@ public class MpjLocatorCoverageController {
     public List<UserDTO> joinWithPlaceholder(@RequestParam(defaultValue = "138") String tel) {
         return mpjLocatorCoverageService.joinWithPlaceholder(tel);
     }
+
+    /**
+     * 分页 searchCount 布尔形态（Page 第三参 false 无 COUNT / 缺省有 COUNT 对照）
+     * GET /mpj/locator/pageSearchCount?current=2&size=5
+     */
+    @GetMapping("/pageSearchCount")
+    public Map<String, Object> pageSearchCount(@RequestParam(defaultValue = "2") long current,
+                                               @RequestParam(defaultValue = "5") long size) {
+        return mpjLocatorCoverageService.pageSearchCountForms(current, size);
+    }
 }

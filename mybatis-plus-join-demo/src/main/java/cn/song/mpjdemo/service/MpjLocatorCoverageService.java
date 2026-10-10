@@ -53,4 +53,10 @@ public interface MpjLocatorCoverageService {
      * 字符串 join {0} 参数替换（leftJoin(String, Object...)）
      */
     List<UserDTO> joinWithPlaceholder(String tel);
+
+    /**
+     * 分页 searchCount 布尔形态（插件 R12 Wrapper 面）：selectJoinMapsPage /
+     * selectJoinPage 的 Page 构造器第三参布尔识别——false 时不产 COUNT 包裹语句
+     */
+    Map<String, Object> pageSearchCountForms(long current, long size);
 }

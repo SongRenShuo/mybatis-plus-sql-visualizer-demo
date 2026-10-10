@@ -163,4 +163,30 @@ public class MpjLocatorCoverageServiceImpl implements MpjLocatorCoverageService 
                 .le("t.age", 60);
         return userMapper.selectJoinList(UserDTO.class, wrapper);
     }
+
+    /**
+     * 分页 searchCount 布尔形态（插件 R12 Wrapper 面）：
+     * Page 构造器第三参 false → selectJoinMapsPage / selectJoinPage 预期只有 LIMIT、无 COUNT 包裹
+     */
+    @Override
+    public Map<String, Object> pageSearchCountForms(long current, long size) {
+        MPJLambdaWrapper<UserDO> wrapper = JoinWrappers.lambda(UserDO.class)
+                .select(UserDO::getId, UserDO::getName)
+                .leftJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
+                .ge(UserDO::getAge, 18);
+
+        Map<String, Object> result = new HashMap<>(4);
+        result.put("mapsPageNoCount", userMapper.selectJoinMapsPage(
+                new Page<Map<String, Object>>(current, size, false), wrapper));
+
+        MPJLambdaWrapper<UserDO> wrapper2 = JoinWrappers.lambda(UserDO.class)
+                .selectAll(UserDO.class)
+                .leftJoin(AddressDO.class, AddressDO::getUserId, UserDO::getId)
+                .eq(UserDO::getSex, 1);
+        result.put("joinPageNoCount", userMapper.selectJoinPage(
+                new Page<UserDTO>(current, size, false), UserDTO.class, wrapper2));
+        result.put("joinPageCountOn", userMapper.selectJoinPage(
+                new Page<UserDTO>(current, size), UserDTO.class, wrapper2));
+        return result;
+    }
 }

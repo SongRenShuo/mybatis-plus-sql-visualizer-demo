@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  通用 XML 内嵌 JPQL 载体语料（插件 T-XmlInlineSql/O-72）：根元素 jpWidget，
+  载体标签 type="jpql" + 命名参数（:minQty）形态——与 hq-widget 的 ? 位置参数对照。
+-->
+<jpWidget title="物料盘点">
+    <query id="stockCheck" type="jpql">
+        <dataSource>
+            <![CDATA[
+                SELECT COUNT(li) FROM LegacyItem li WHERE li.itemCode LIKE :codePrefix AND li.quantity >= :minQty
+            ]]>
+        </dataSource>
+    </query>
+</jpWidget>

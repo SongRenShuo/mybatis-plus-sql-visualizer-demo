@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  通用 XML 内嵌 HQL 载体语料（插件 T-XmlInlineSql/O-72）：根元素 hqWidget（异根），
+  载体标签 type="hql" ——预期走 HQL 转换管道（复用 hbm 命名查询链），
+  LegacyItem 属性映射为 legacy_item 表列、? 占位符参数表；实体不可解析时回退原文直显。
+-->
+<hqWidget title="遗留物料查询">
+    <query id="activeItems" type="hql">
+        <dataSource>
+            <![CDATA[
+                SELECT li.itemName, li.quantity
+                FROM LegacyItem li
+                WHERE li.deprecated = ?
+                  AND li.quantity >= ?
+                ORDER BY li.inTime DESC
+            ]]>
+        </dataSource>
+    </query>
+</hqWidget>

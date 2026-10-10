@@ -121,3 +121,24 @@ INSERT INTO `legacy_item` (`id`, `item_code`, `item_name`, `quantity`, `deprecat
 (1, 'MAT001', '螺栓', 100, 0, NOW()),
 (2, 'MAT002', '垫片', 5, 0, NOW()),
 (3, 'MAT003', '旧款支架', 0, 1, NOW());
+
+-- 嵌套嵌入深水区实体（T-Embedded G1/G2 语料）：列面=覆写/前缀口径（cust_street/cust_zip/biz_*/fallback_*）
+DROP TABLE IF EXISTS `customer`;
+CREATE TABLE `customer` (
+    `id`                 BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `name`               VARCHAR(64)  DEFAULT NULL COMMENT '名称',
+    `cust_street`        VARCHAR(128) DEFAULT NULL COMMENT '地址街道（类级根点路径覆写 address.street）',
+    `cust_zip`           VARCHAR(16)  DEFAULT NULL COMMENT '邮编（字段级相对点路径覆写 zipcode.zip）',
+    `area_code`          VARCHAR(16)  DEFAULT NULL COMMENT '区域代码（嵌套裸列兜底）',
+    `biz_street`         VARCHAR(128) DEFAULT NULL COMMENT '经营地址街道（SD prefix=biz_）',
+    `biz_zip`            VARCHAR(16)  DEFAULT NULL COMMENT '经营地址邮编（SD prefix=biz_）',
+    `biz_area_code`      VARCHAR(16)  DEFAULT NULL COMMENT '经营地址区域代码（SD prefix=biz_）',
+    `created_time`       DATETIME     DEFAULT NULL COMMENT '联系信息更新时间（@Embedded.Nullable 捷径）',
+    `zip`                VARCHAR(16)  DEFAULT NULL COMMENT '兜底邮编（@Embedded.Empty 捷径）',
+    `fallback_area_code` VARCHAR(16)  DEFAULT NULL COMMENT '兜底区域代码（@Embedded.Empty 捷径，JPA 覆写防撞）',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '嵌套嵌入深水区语料';
+
+INSERT INTO `customer` (`id`, `name`, `cust_street`, `cust_zip`, `area_code`, `biz_street`, `biz_zip`, `biz_area_code`, `created_time`, `zip`, `fallback_area_code`) VALUES
+(1, '客户A', '南京东路 1 号', '200001', '021', '中山东一路 3 号', '200002', '021', NOW(), '200001', '021'),
+(2, '客户B', '延安西路 100 号', '200040', '021', '静安寺 5 号', '200040', '021', NULL, NULL, '021');

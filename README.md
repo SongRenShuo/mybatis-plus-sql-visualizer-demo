@@ -290,3 +290,34 @@ SQL 只在运行期由 agent 增强捕获可见，正是该设置项要解决的
 
 > 走查 JAR 档位需绕开 IDEA 的 Maven workspace 解析（它会把兄弟模块还原成目录形态），
 > 配方见 [`selfdev-shared-lib/README.md`](selfdev-shared-lib/README.md)。
+
+## 场景覆盖清单增补（2026-10-10 对照插件 2026.10.6 → 2026.10.13 四版新能力）
+
+开发计划见《[20261010-插件202610新能力语料补齐-开发计划](docs/开发计划/20261010-插件202610新能力语料补齐-开发计划.md)》。
+版本墙提前 javap 实证：`Page(long,long,boolean)` MP 3.5.7 在位；`jakarta.persistence-api` 用 **3.0.0**（major 52；3.1.0 是 major 55 与 JDK8 冲突）；
+Spring Data `@Embedded.Nullable/Empty` 在 Boot 2.6.3 线不存在，jpa-demo 以**同 FQN 桩注解**承载（升级 Boot 3 须删桩换真依赖）。
+
+### mybatis-plus-demo 增补
+
+| 语料 | 位置 | 覆盖的插件能力（版本） |
+|---|---|---|
+| `PageSimController` 八端点：注解 IPage / XML 手写 LIMIT 不重复追加 / searchCount 三参四参 / selectList·selectMaps 消费 | `controller/PageSimController` | 分页拦截器模拟 R12 + COUNT 独立开关 T-CountSimToggle（2026.10.13） |
+| `LogFeederController`：`/logFeed/n1`（同模板 N+1）、`/heartbeat`（SELECT 1）、`/storm`（可调 QPS）、`/dateParam`（Date/Timestamp/sql.Date 混参）、`/shardingSphere`、`/ssCommaParam` | `controller/LogFeederController` | N+1 同模板徽章 O-90、SQL 屏蔽 T-SqlSuppress、日志性能 T-SqlLogPerf、ShardingSphere 双段解析 R10、日期族 ANSI 字面量还原 R3（2026.10.6/10.13） |
+| 混合注解实体 `MixedProfile`（@TableName + jakarta @Embeddable 值对象展平列） | `service/impl/MixedEntityServiceImpl`（**纯静态预览，无端点**——MP 运行期不认 jakarta 注解，勿 curl） | @Embedded 混合注解实体 G3（2026.10.6） |
+| `inline-xml/report-view.xml`（异根 + WITH CTA + CDATA）、`inline-xml/legacy-replace.xml`（纯文本 REPLACE） | `resources/inline-xml/` | 通用 XML 内嵌兜底认领词表变体（O-72） |
+| `application-pg.yml` PG profile | `resources/` | PG 语句面织入 attach 验收（T-PgWeave，2026.10.13；起服务后 `/logFeed/heartbeat` 即可验证事件到达） |
+
+### mybatis-plus-join-demo 增补
+
+- `MpjLocatorCoverageService#pageSearchCountForms`：`selectJoinMapsPage` / `selectJoinPage` 的 Page 第三参 searchCount=false 对照（R12 Wrapper 面）。
+- `resources/sql-reverse/` 八件粘贴语料 + `README.md` 预期清单：GROUP BY·HAVING / DISTINCT·FOR UPDATE / UNION / apply 参数化 / 方言宽容（双引号标识符、0x、`'a\'b'`、DATE·TIMESTAMP 字面量）/ JOIN 双形态·多表 DELETE / INSERT NULL / 返回类型族——喂「SQL → Java」面板（T-SqlToJavaPromote / T-MapResultVo，2026.10.9）。
+
+### jpa-hibernate-demo 增补
+
+- 嵌套嵌入深水区实体组 `Zipcode`→`Address`→`CustomerEntity`：字段级相对点路径覆写 `zipcode.zip → cust_zip`、类级根点路径 `address.street → cust_street`、SD 桩 `@Embedded(prefix="biz_")` 双嵌入防撞、`@Embedded.Nullable` / `@Embedded.Empty` 捷径（G1/G2，2026.10.6）；走查入口 `/embedded/**`（派生查询列面不得出伪列）。
+- `inline/hq-widget.xml`（type="hql" + `?`）、`inline/jp-widget.xml`（type="jpql" + 命名参数）：通用 XML 内嵌走 HQL 转换管道（O-72）。
+- SD 桩注解：`org.springframework.data.relational.core.mapping.Embedded`（本地同 FQN，`@Embedded(prefix/Nullable/Empty)` 语料形态）。
+
+### 运行期环境语料（无代码，走查口径）
+
+- EXPLAIN 结构化渲染 / Oracle·SQL Server EXPLAIN / OceanBase·openGauss 方言渲染：需对应真库或多方言切换操作——同一条 `PageSim` / `sql-reverse` 语句在设置页切换方言逐档核对（openGauss 的 upsert 是 MySQL 形态 `ON DUPLICATE KEY UPDATE`、`LIMIT 1,2` 会被 PG 语义错解，均真机实证在案）。

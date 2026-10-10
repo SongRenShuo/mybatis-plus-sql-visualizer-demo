@@ -215,6 +215,32 @@
     </select>
 
 
+    <!-- XML 手写 LIMIT 分页（R12 语料）：尾部自带 limit，插件分页模拟不应重复追加 LIMIT，只并列 COUNT -->
+    <select id="selectUserPageLimitXml" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from user
+        <where>
+            deleted = 0
+            <if test="status != null">
+                and status = #{status}
+            </if>
+        </where>
+        order by id desc
+        limit #{offset}, #{pageSize}
+    </select>
+
+    <!-- XML 时间范围查询（R3 日期族参数语料）：Date/Timestamp/sql.Date 混型参数 -->
+    <select id="selectByTimeRangeXml" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from user
+        where deleted = 0
+        and create_time &gt;= #{startTime}
+        and create_time &lt; #{endTime}
+        and update_time &gt;= #{lastModified}
+    </select>
+
 <!--    &lt;!&ndash; 查询资产状态分布 &ndash;&gt;-->
 <!--    <select id="selectStatusDistribution" resultType="com.gfjh.cloud.module.ams.controller.admin.home.vo.StatusDistributionItem">-->
 <!--        SELECT-->

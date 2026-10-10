@@ -166,6 +166,33 @@ public interface UserMapper extends BaseMapper<User> {
     List<User> selectByMapParamXml(@Param("params") java.util.Map<String, Object> params);
 
     /**
+     * 注解 SQL 分页（R12 分页模拟语料）：@Select 路径 + IPage 形参——
+     * 预览应尾追 LIMIT 并并列产出 COUNT 包裹语句
+     */
+    @Select("SELECT id, username, age, status FROM user WHERE deleted = 0 AND status = #{status} ORDER BY id")
+    com.baomidou.mybatisplus.core.metadata.IPage<User> selectUserPageAnnotation(
+            com.baomidou.mybatisplus.core.metadata.IPage<User> page,
+            @Param("status") Integer status);
+
+    /**
+     * XML 手写 LIMIT 分页（R12「手写 LIMIT 不重复追加」语料）：语句尾部已带 LIMIT，
+     * IPage 形参在首位——预览应只产 COUNT，不再追加第二条 LIMIT
+     */
+    com.baomidou.mybatisplus.core.metadata.IPage<User> selectUserPageLimitXml(
+            com.baomidou.mybatisplus.core.metadata.IPage<User> page,
+            @Param("status") Integer status,
+            @Param("offset") long offset,
+            @Param("pageSize") int pageSize);
+
+    /**
+     * XML 时间范围查询（R3 日期族参数 ANSI 字面量还原语料）：
+     * java.util.Date / Timestamp / java.sql.Date 混型参数，MyBatis 日志带类型标注
+     */
+    List<User> selectByTimeRangeXml(@Param("startTime") java.util.Date startTime,
+                                    @Param("endTime") java.sql.Timestamp endTime,
+                                    @Param("lastModified") java.sql.Date lastModified);
+
+    /**
      * 自定义注入器批量插入（MybatisPlusConfig#defaultSqlInjector 追加 InsertBatchSomeColumn）
      */
     int insertBatchSomeColumn(@Param("list") List<User> list);

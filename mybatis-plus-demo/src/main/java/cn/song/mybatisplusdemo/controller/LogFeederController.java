@@ -80,6 +80,11 @@ public class LogFeederController {
 
     /**
      * 日志风暴喂料（T-SqlLogPerf 性能面）：同模板不同参数按目标 QPS 灌入——验证列表跟随滚动/停止跟随、历史加载
+     *
+     * <p>用 {@code queryForList} 而非 {@code queryForObject}：序号一路递增必然越过表中现存主键，
+     * 命中 0 行时 queryForObject 抛 EmptyResultDataAccessException，会把控制台刷满异常栈
+     * （录制/演示时两侧画面都被污染），而本端点只关心「同形状 SQL 按参数高频灌入」，
+     * 结果集空不空不影响模拟。SQL 文本与占位符形态保持不变。
      */
     @GetMapping("/storm")
     public String storm(@RequestParam(defaultValue = "60") int qps,
@@ -90,7 +95,7 @@ public class LogFeederController {
         int n = 0;
         long deadline = System.currentTimeMillis() + boundedSec * 1000L;
         while (System.currentTimeMillis() < deadline) {
-            jdbcTemplate.queryForObject("SELECT id FROM user WHERE id = ?", Integer.class, ++n);
+            jdbcTemplate.queryForList("SELECT id FROM user WHERE id = ?", Integer.class, ++n);
             Thread.sleep(paceMs);
         }
         return "storm done, n=" + n;

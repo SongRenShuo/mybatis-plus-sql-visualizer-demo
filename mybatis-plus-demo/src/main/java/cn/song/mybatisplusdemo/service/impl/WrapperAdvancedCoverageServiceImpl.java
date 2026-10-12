@@ -41,7 +41,7 @@ public class WrapperAdvancedCoverageServiceImpl implements WrapperAdvancedCovera
      */
     private LambdaQueryWrapper<User> baseActiveUserWrapper() {
         return Wrappers.<User>lambdaQuery()
-                .eq(User::getStatus, 1)
+                .SQLeq(User::getStatus, 1)
                 .isNotNull(User::getEmail);
     }
 
@@ -187,5 +187,19 @@ public class WrapperAdvancedCoverageServiceImpl implements WrapperAdvancedCovera
     @Override
     public int batchInsertSome(List<User> users) {
         return userMapper.insertBatchSomeColumn(users);
+    }
+
+    /**
+     * 静态性能建议演示：LIKE 用**字面通配**（前导 %）+ 无 LIMIT 的 ORDER BY
+     * —— 预览面板元信息行下应同时给出「LIKE 含前导通配符」与「ORDER BY 无 LIMIT」两条建议。
+     * 注意 MP 的 `like()` **自己补两侧 `%`**，值里不要再写 `%`（写成 `"%张%"` 会渲染出
+     * `LIKE '%%张%%'` 的双重通配）。
+     * （给文档站「静态性能建议」配图用的稳定素材；其余 demo 链的 LIKE 值都是变量，
+     * 渲染成 `LIKE ?` 看不出通配形态，触发不了该规则。）
+     */
+    public List<User> perfAdviceDemo() {
+        return userMapper.selectList(Wrappers.<User>lambdaQuery()
+                .like(User::getUsername, "张")
+                .orderByDesc(User::getCreateTime));
     }
 }

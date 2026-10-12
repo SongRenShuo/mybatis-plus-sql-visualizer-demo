@@ -49,4 +49,12 @@
         HAVING COUNT(*) &gt; 1
         ORDER BY total_amount DESC
     </select>
+
+    <!-- ${} 直接替换（raw 段）：排序列名由参数原样拼接，非预编译占位
+         —— 给文档站「${} 直替提示与执行确认」配图用的稳定素材 -->
+    <select id="selectOrderByRawColumn" resultType="cn.song.mybatisplusdemo.entity.Order">
+        SELECT id, order_no, amount
+        FROM t_order
+        ORDER BY ${orderBy}
+    </select>
 </mapper>

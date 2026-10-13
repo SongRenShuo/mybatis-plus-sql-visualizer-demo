@@ -38,14 +38,26 @@ D:/HuanJing/Maven/maven-mvnd-1.0.3/bin/mvnd.cmd -pl jpa-embedded-prefix-demo spr
 1. `GET http://localhost:8087/embed-prefix/naming` → `implicitNamingStrategy = component-path`。
 2. `GET http://localhost:8087/embed-prefix/columns` → 列清单里应出现
    **`qty_base_qty`** 与 **`move_tool_pallet_no`**（这是真库真值，也是插件预览应该渲染出的名字）。
-3. `GET http://localhost:8087/embed-prefix/query` → 返回 2 行（演示数据），证明按该列名真跑得通。
-4. **插件侧**：在 IDE 里打开本模块工程，光标放到
-   `WmsInventoryQueryService.findAvailableInventory` 里的 `commonDao.findByQueryMaxNum(...)` 调用上，
-   或直接预览 `buildAvailableInventoryHql()` 返回的那条 HQL —— 产物应含
-   `inv.move_tool_pallet_no` 与 `inv.qty_base_qty`。
+3. `GET http://localhost:8087/embed-prefix/query` → 返回 1 行（W01/P001，`baseQty=120`）；
+   另一条 seed 数据 `baseQty=0` 被 HQL 的 `inv.qty.baseQty > 0` 过滤掉，符合预期。
+   `?mode=buffer` 走 StringBuffer 承载形态，结果同上。
+4. **插件侧**：在 IDE 里打开本模块工程，三个方法里的 `commonDao.findByQueryMaxNum(...)` 调用
+   **都应各亮 1 枚预览图标**（本模块刻意备齐三种 HQL 承载形态）：
+   - `findAvailableInventory`——拼接变量（`String hql = "…" + "…"`）；
+   - `findAvailableInventoryByBuffer`——StringBuffer + `sb.toString()`；
+   - `findAvailableInventoryViaHelper`——**方法返回**（`buildAvailableInventoryHql()`）。
+
+   预览产物应含 `inv.move_tool_pallet_no` 与 `inv.qty_base_qty`。
    - 若渲染成 `inv.pallet_no` / `inv.base_qty`，即复现了报障缺陷；
    - 插件侧的嵌入列命名档位见 设置 → 表名映射 → **嵌入列命名**（自动 / 无前缀 / 组件路径前缀），
      本模块在「自动」下应由配置探测命中；探测不到时手动切「组件路径前缀」应等价修复。
+
+> 第三种形态（方法返回）是**用户报障点**，现已是插件能力：首参写成方法调用时，插件会跟随到
+> 那个**源码可见**的方法、聚合其 `return` 表达式（T-HqlHelperReturn，深度上限 3 层、多分支返回
+> 内容不一致时不猜、返回非 String 不认领）。插件仓门禁 `DemoEmbeddedPrefixReproAnchorTest`
+> 加载本文件并断言「3 个调用各恰 1 枚图标」，另有「返回非 String → 0 图标」的反向断言。
+> 复现这段历史：本用例第一版把 HQL 抽进方法，**当时**插件不认该形态 → 图标与快捷键预览同时失效
+> （用户真机实测报障），随后才补上这条能力。
 
 > 打开方式建议：**以本模块目录为工程打开**。以仓库聚合根打开时，插件按实体所在模块取配置，
 > 行为同样正确，但本模块的 `component-path` 不应影响同仓其它模块的嵌入列命名。
@@ -67,6 +79,16 @@ create table wms_inventory_embed_demo (
     warehouse_id varchar(32),
     primary key (id)
 ) engine=InnoDB
+```
+
+端点真跑读数（三档承载形态都验过）：
+
+```text
+GET /embed-prefix/naming                     → {"implicitNamingStrategy":"component-path"}
+GET /embed-prefix/columns                    → ["id","move_tool_pallet_no","qty_base_qty","warehouse_id"]
+GET /embed-prefix/query                      → mode=plain ，rowCount=1
+GET /embed-prefix/query?mode=buffer          → mode=buffer，rowCount=1
+GET /embed-prefix/query?mode=helper          → mode=helper，rowCount=1
 ```
 
 即：实体侧零注解，真库列名就是 `qty_base_qty` / `move_tool_pallet_no`——插件预览产物应以

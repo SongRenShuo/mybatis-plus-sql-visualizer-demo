@@ -18,9 +18,12 @@ import java.util.Map;
  *
  * 走查时先跑一遍，确认「真库列名确实带嵌入段前缀」——插件预览产物必须与这里一致：
  *  - `GET /embed-prefix/columns` 读 information_schema，直接打印真库列名；
- *  - `GET /embed-prefix/hql`     返回待预览的 HQL 原文（可复制到插件里对照）；
- *  - `GET /embed-prefix/query`   真跑一次查询（列名不对会直接报 Unknown column）；
+ *  - `GET /embed-prefix/query`   真跑一次查询（列名不对会直接报 Unknown column），
+ *    `mode=buffer` 走 StringBuffer 承载形态；
  *  - `GET /embed-prefix/naming`  回显生效的隐式命名策略。
+ *
+ * （待预览的 HQL 原文就在 {@link WmsInventoryQueryService} 的两个方法体里——在 IDE 里
+ * 直接预览那两个调用即可，故不再提供单独的 hql 端点。）
  *
  * @author SongRenShuo
  */
@@ -41,16 +44,6 @@ public class EmbedPrefixReproController {
         this.environment = environment;
     }
 
-    /** 待预览的 HQL 原文。 */
-    @GetMapping("/hql")
-    public Map<String, Object> hql() {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("hql", queryService.buildAvailableInventoryHql());
-        body.put("previewExpectation",
-                "预览应含 inv.move_tool_pallet_no 与 inv.qty_base_qty；出现 inv.pallet_no / inv.base_qty 即缺陷复现");
-        return body;
-    }
-
     /** 真库列名（复现的判据来源）。 */
     @GetMapping("/columns")
     @SuppressWarnings("unchecked")
@@ -67,13 +60,24 @@ public class EmbedPrefixReproController {
         return body;
     }
 
-    /** 真跑一次查询：列名不对会报 Unknown column。 */
+    /** 真跑一次查询：列名不对会报 Unknown column。`mode` 选承载形态：plain / buffer / helper。 */
     @GetMapping("/query")
     public Map<String, Object> query(@RequestParam(defaultValue = "W01") String warehouseId,
-                                     @RequestParam(defaultValue = "P001") String palletNo) {
-        List<?> rows = queryService.findAvailableInventory(warehouseId, palletNo);
+                                     @RequestParam(defaultValue = "P001") String palletNo,
+                                     @RequestParam(defaultValue = "plain") String mode) {
+        final List<?> rows;
+        switch (mode) {
+            case "buffer":
+                rows = queryService.findAvailableInventoryByBuffer(warehouseId, palletNo);
+                break;
+            case "helper":
+                rows = queryService.findAvailableInventoryViaHelper(warehouseId, palletNo);
+                break;
+            default:
+                rows = queryService.findAvailableInventory(warehouseId, palletNo);
+        }
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("hql", queryService.buildAvailableInventoryHql());
+        body.put("mode", mode);
         body.put("warehouseId", warehouseId);
         body.put("palletNo", palletNo);
         body.put("rowCount", rows.size());

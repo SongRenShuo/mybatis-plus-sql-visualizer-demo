@@ -21,6 +21,8 @@
         <module>mybatis-plus-demo</module>
         <module>mybatis-plus-join-demo</module>
         <module>jpa-hibernate-demo</module>
+        <!-- @Embedded 嵌入列前缀（Hibernate component-path 命名）复现用例；见模块 README -->
+        <module>jpa-embedded-prefix-demo</module>
         <module>mybatis-plus-kotlin-demo</module>
         <module>multi-orm-demo</module>
         <!--

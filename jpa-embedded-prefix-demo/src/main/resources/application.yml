@@ -1,0 +1,40 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: jpa-embedded-prefix-demo
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/jpa_demo?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+  jpa:
+    # 演示环境：启动按实体自动建表/补列（生产请用 validate / none）
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        # ============================================================
+        # 复现关键：组件路径命名策略（Hibernate 官方短名 component-path，
+        # 即 org.hibernate.boot.model.naming.ImplicitNamingStrategyComponentPathImpl）。
+        #
+        # 该策略把属性路径并进列名：实体 @Embedded qty.baseQty → 列 qty_base_qty，
+        # moveTool.palletNo → 列 move_tool_pallet_no。
+        #
+        # 复现要点：实体与 @Embeddable 上**不写任何 @Column / @AttributeOverride**，
+        # 列名完全由本策略决定——这正是插件预览此前拿不到前缀、渲染成
+        # inv.base_qty（真库是 inv.qty_base_qty）的场景。
+        #
+        # 这是本模块**故意**与 jpa-hibernate-demo 不同的一点：后者走 JPA 默认
+        # 「无前缀」命名（updateInfo.createdTime → created_time）。两者共存，
+        # 用于验证插件的嵌入列命名探测按**实体所在模块**取配置、互不外溢。
+        # ============================================================
+        implicit_naming_strategy: component-path
+    open-in-view: false
+
+logging:
+  level:
+    org.hibernate.SQL: debug

@@ -2,7 +2,7 @@
 
 [Sql Visualizer](https://gitee.com/SongRenShuo/mybatis-plus-sql-visualizer) 插件的测试用例 Demo 集合项目。
 
-本仓库包含六个相互独立的 Spring Boot 子项目（Maven 多模块仓库，每个子项目可单独构建运行），
+本仓库包含多个相互独立的 Spring Boot 子项目（Maven 多模块仓库，每个子项目可单独构建运行），
 外加一个 JAR 态语料子工程（`selfdev-shared-lib`，非 Boot 应用），
 覆盖插件支持的各 ORM 主题与 SQL 来源形态，为插件提供真实、丰富的 SQL 预览 / SQL 生成测试场景：
 
@@ -11,6 +11,7 @@
 | [mybatis-plus-demo](mybatis-plus-demo) | 8081 / mp_demo | MyBatis-Plus 3.5.7 | `QueryWrapper` / `LambdaQueryWrapper` / `UpdateWrapper` / `LambdaUpdateWrapper`、`eqSql`/`inSql` 族、Wrappers 工厂 / Db kit / ActiveRecord、XML 动态 SQL、注解 SQL、分页、批量操作；`JdbcTemplate` / `NamedParameterJdbcTemplate` 字符串 SQL、自研 DAO 壳（`DbHelper` / `BeanCruder`） |
 | [mybatis-plus-join-demo](mybatis-plus-join-demo) | 8082 / mpj_demo | MyBatis-Plus-Join（MP 3.5.2 + MPJ 1.5.8） | `MPJLambdaWrapper` 多表联查、聚合族、`selectCollection`、子查询条件族、`fill`、`updateJoin` / `deleteJoin`、`MPJQueryWrapper` 字符串链 |
 | [jpa-hibernate-demo](jpa-hibernate-demo) | 8083 / jpa_demo | JPA + Hibernate（Spring Boot 2.6.3） | Spring Data JPA 派生查询、`@Query` JPQL、`CriteriaQuery`、Hibernate HQL、`HibernateTemplate` / `HibernateDaoSupport` 通用 DAO、hbm.xml 遗留实体、JPA 写路径（save / `@Modifying` / `CriteriaUpdate`·`Delete` / Specification / QBE / 锁读） |
+| [jpa-embedded-prefix-demo](jpa-embedded-prefix-demo) | 8087 / jpa_demo | JPA + Hibernate（Spring Boot 2.6.3） | `@Embedded` 嵌入列前缀复现用例：命名策略取 Hibernate 组件路径（`component-path`），实体与 `@Embeddable` 上**不写** `@Column`/`@AttributeOverride`，故 `qty.baseQty` → 列 `qty_base_qty`、`moveTool.palletNo` → 列 `move_tool_pallet_no`；配 `CommonDao` 自定义 DAO 的拼接 HQL + 双数组传参调用（用户报障同款），用于验证插件预览列名与真库一致 |
 | [mybatis-plus-kotlin-demo](mybatis-plus-kotlin-demo) | 8084 / kotlin_demo | MyBatis-Plus Kotlin（1.9.25 + MP 3.5.7） | `ktQuery()` / `ktUpdate()` 扩展链、Kotlin 直接构造 Wrapper（插件 KtWrapperDetector 语料） |
 | [multi-orm-demo](multi-orm-demo) | 8085 / orm_demo | 其它 ORM 四家（插件 M44 识别器） | Querydsl（Q 类表达式树）、MyBatis Dynamic SQL（DSL 构建）、xbatis（Chain 链）、Easy-Query（proxy 链） |
 | [selfdev-framework-demo](selfdev-framework-demo) | 8086 / selfdev_demo | 自研框架帧过滤前缀（设置项专用语料） | 模拟不经 MyBatis 的自研数据访问引擎（`com.corp.engine` / `com.corp.meta`），34 端点覆盖 12 种调用形态 × 4 类查询/写形态 × 3 档委托深度 × 2 种帧来源（目录/JAR），用于验证「源码捕获帧过滤前缀」登记前后的跳转落点差异 |

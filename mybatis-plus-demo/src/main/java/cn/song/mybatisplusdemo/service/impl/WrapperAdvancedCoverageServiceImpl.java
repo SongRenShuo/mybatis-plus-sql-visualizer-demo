@@ -41,7 +41,7 @@ public class WrapperAdvancedCoverageServiceImpl implements WrapperAdvancedCovera
      */
     private LambdaQueryWrapper<User> baseActiveUserWrapper() {
         return Wrappers.<User>lambdaQuery()
-                .SQLeq(User::getStatus, 1)
+                .eq(User::getStatus, 1)
                 .isNotNull(User::getEmail);
     }
 

@@ -15,8 +15,7 @@ public class ProbeService {
 
     /** 走查入口：光标置于此链内按 Alt+Shift+Q → 预览弹窗（DELETE FROM user WHERE id = ?）。 */
     public int deleteOne() {
-        return userMapper.delete(new LambdaQue
-                ryWrapper<User>().eq(User::getId, 1));
+        return userMapper.delete(new LambdaQueryWrapper<User>().eq(User::getId, 1));
     }
 
     /** 对照：SELECT 链（回滚为 UNABLE，用于区分「执行计划」可用与否）。 */

@@ -61,6 +61,11 @@ public class LogFeederController {
         return sb.toString();
     }
 
+    @GetMapping("/sqlError")
+    public List<Integer> sqlError() {
+        return userMapper.selectInvalidForRecording();
+    }
+
     /**
      * 心跳 SQL 喂料（T-SqlSuppress 屏蔽）：循环 SELECT 1——右键「屏蔽此 SQL」后该行应即刻消失且计数递增
      */

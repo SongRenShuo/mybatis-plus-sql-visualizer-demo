@@ -27,6 +27,9 @@ public interface UserMapper extends BaseMapper<User> {
     @Select("SELECT * FROM user WHERE id = #{id}")
     User selectByAnnotationId(@Param("id") Integer id);
 
+    @Select("SELECT id FROM user WHERE")
+    List<Integer> selectInvalidForRecording();
+
     /**
      * 注解 SQL：script 动态标签（if + where）
      */

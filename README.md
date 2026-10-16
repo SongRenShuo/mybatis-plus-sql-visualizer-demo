@@ -19,6 +19,15 @@
 | [jpa-jar-model-demo](jpa-jar-model-demo) | 8088 / jpa_demo | 实体/嵌入类来自依赖 JAR 的嵌入列命名复现 | 实体、`@Embeddable`、仓库接口全在依赖 JAR [`jpa-jar-model-lib`](jpa-jar-model-lib) 里，宿主模块**无实体源码**（模块根不可知，命名约定只能靠工程级信号：`application.yml` 设置键 / Java 源码里的 `ImplicitNamingStrategyComponentPathImpl` 类名）；三个 `@Embedded` 零注解 + 二层嵌套（`itemKey.lotInfo.receivedDate`），配自定义 DAO 的拼接 HQL 与 StringBuffer 两种承载形态 |
 | [jpa-jar-model-lib](jpa-jar-model-lib) | — / —（非 Boot 应用） | 上面的 JAR 态语料 | 普通 JAR：`cn.song.jarlib.entity` 的 `WmsInventoryEntity` + `WmsInventoryQty`/`WmsSku`/`WmsItemKey`（内含静态嵌套 `LotInfo`）+ Spring Data 仓库接口，全部以依赖 JAR 形态加载，宿主无源码 |
 
+## 独立 UI 验收夹具
+
+`mybatis-plus-demo/src/test/java/cn/song/previewfixtures/FillProbeCases.java` 是静态预览入口。
+逐个在 `insert/updateById/updateWhere/select/delete/saveBatch/updateBatchById/saveOrUpdateBatch` 调用处打开预览。
+`FillProbe` 包含 AUTO 主键、独立 `@Version revision`、INSERT 字符串 `createdBy`、UPDATE 字符串 `updatedBy`、
+INSERT_UPDATE 数值 `operatorId` 和显式 DEFAULT 的 `label`。用这些字段核对参数面板默认勾选、类型和填充标识。
+这些类只在 test 源码目录，无组件、测试或运行入口，不启动 Spring，不运行用户的填充 Handler，也不建真实表。
+只编译检查可执行 `mvn -o -f mybatis-plus-demo/pom.xml -DskipTests test-compile`；不要运行宿主应用来验证这些夹具。
+
 ## 环境要求
 
 - JDK 1.8

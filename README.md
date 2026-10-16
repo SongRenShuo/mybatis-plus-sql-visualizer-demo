@@ -26,7 +26,17 @@
 `FillProbe` 包含 AUTO 主键、独立 `@Version revision`、INSERT 字符串 `createdBy`、UPDATE 字符串 `updatedBy`、
 INSERT_UPDATE 数值 `operatorId` 和显式 DEFAULT 的 `label`。用这些字段核对参数面板默认勾选、类型和填充标识。
 这些类只在 test 源码目录，无组件、测试或运行入口，不启动 Spring，不运行用户的填充 Handler，也不建真实表。
-只编译检查可执行 `mvn -o -f mybatis-plus-demo/pom.xml -DskipTests test-compile`；不要运行宿主应用来验证这些夹具。
+先按下面步骤安装模型 JAR，再执行 `mvn -o -f mybatis-plus-demo/pom.xml -DskipTests test-compile` 检查；不要运行宿主应用来验证这些夹具。
+
+### MP 依赖 JAR 的非常规映射
+
+`mp-jar-model-lib` 是普通 JAR，不经过 Boot 重打包。`cn.song.mpjarlib.LegacyBooking` 映射到
+`ui_reservation_ledger`，`referenceCode` 显式映射 `booking_code`，`stateCode` 对照常规 `state_code`。
+先执行 `mvn -o -f mp-jar-model-lib/pom.xml -DskipTests install`，再仅打开 `mybatis-plus-demo/pom.xml`。
+不要在该窗口导入根聚合 POM，否则 IDEA 可能用兄弟模块源码替代依赖 JAR。
+宿主依赖为 test scope，打开 `src/test/java/cn/song/previewfixtures/LegacyBookingCases.java` 的 select/update/insert 调用验收。
+预期表名不能退化为 `legacy_booking`，引用列不能退化为 `reference_code`。
+从 External Libraries 核对实体来自 `mp-jar-model-lib-1.0.0.jar`，而非兄弟模块 target/classes；无需附加 sources JAR。
 
 ## 环境要求
 

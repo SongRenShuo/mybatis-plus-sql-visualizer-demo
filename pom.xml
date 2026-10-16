@@ -18,6 +18,7 @@
     <description>mybatis-plus-sql-visualizer 插件测试用例 Demo 集合（多模块聚合）</description>
 
     <modules>
+        <module>mp-jar-model-lib</module>
         <module>mybatis-plus-demo</module>
         <module>mybatis-plus-join-demo</module>
         <module>jpa-hibernate-demo</module>

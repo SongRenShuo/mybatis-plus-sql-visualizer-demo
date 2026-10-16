@@ -26,6 +26,14 @@
     </properties>
 
     <dependencies>
+        <!-- 仅静态预览夹具使用；单模块导入时从本地仓库解析普通模型 JAR。 -->
+        <dependency>
+            <groupId>cn.song</groupId>
+            <artifactId>mp-jar-model-lib</artifactId>
+            <version>1.0.0</version>
+            <scope>test</scope>
+        </dependency>
+
         <!--spring-boot-starter-web-->
         <dependency>
             <groupId>org.springframework.boot</groupId>

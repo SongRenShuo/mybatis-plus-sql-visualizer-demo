@@ -38,6 +38,44 @@ INSERT_UPDATE 数值 `operatorId` 和显式 DEFAULT 的 `label`。用这些字�
 预期表名不能退化为 `legacy_booking`，引用列不能退化为 `reference_code`。
 从 External Libraries 核对实体来自 `mp-jar-model-lib-1.0.0.jar`，而非兄弟模块 target/classes；无需附加 sources JAR。
 
+### ShardingSphere 双分片内存日志
+
+`shardingsphere-h2-demo` 是独立普通 Java 模块，要求 JDK 17，固定 ShardingSphere 5.5.2、H2 2.2.224、
+SLF4J 1.7.36、Logback 1.2.13，不继承 Boot 的依赖管理。入口为
+`shardingsphere-h2-demo/src/main/java/cn/song/shardingfixture/ShardingH2Demo.java`。
+
+仅使用代码中三个固定 `jdbc:h2:mem:` 库：`ui_shard_0`、`ui_shard_1`、`ui_ss_metadata`。
+前两个初始化物理表 `ui_order_0/1`，分别放订单 100/101；第三个明确作为 Standalone JDBC metadata 库。
+不读取原有 application 配置、环境变量或 URL 参数，无外部数据库、端口服务、H2 文件持久化或 Spring 启动。
+每次新 JVM 都从空内存建表，连接和数据源在退出时关闭，内存库随 JVM 退出释放。
+
+从根目录执行以下 PowerShell 命令（只构建此模块，不需要启动任何已有 demo）：
+
+```powershell
+$env:JAVA_HOME = 'C:/Users/USER/.jdks/ms-17.0.19'
+& 'D:/HuanJing/Maven/maven-mvnd-1.0.3/bin/mvnd.cmd' -o -T 1 -f shardingsphere-h2-demo/pom.xml -DskipTests compile dependency:build-classpath '-Dmdep.outputFile=target/runtime-classpath.txt' '-Dmdep.includeScope=runtime'
+if ($LASTEXITCODE -ne 0) { throw 'Offline compile/dependency resolution failed' }
+$cp = 'shardingsphere-h2-demo/target/classes;' + (Get-Content -Raw shardingsphere-h2-demo/target/runtime-classpath.txt).Trim()
+& "$env:JAVA_HOME/bin/java.exe" -Xmx384m -cp $cp cn.song.shardingfixture.ShardingH2Demo --once
+if ($LASTEXITCODE -ne 0) { throw 'In-memory assertions failed' }
+```
+
+`--once` 自动断言 100 单片、101 单片和无分片键跨片返回两行，失败会抛出异常，以非零退出。
+两个单片查询使用 `BOOK,100` / `BOOK,101` 逗号字符串参数；SQL 只经真实 ShardingSphere 执行，
+`sql-show=true` 的 `ShardingSphere-SQL` logger 自行产生 Logic/Actual 日志，代码只打印连接范围与断言结果。
+
+后续 IDE Run 此 main（默认无参数）或 CLI 改传 `--interactive`，首次三项断言完成后会阻塞等待输入。
+输入 `100`、`101`、`all` 可分别重放，`both` 或空行重放全部，`quit` 或 EOF 正常退出。
+它不是 sleep 轮询；IDE 控制台没有 EOF 时可保持进程供插件后续重复捕获。CLI 无交互验证仍用 `--once`。
+本次夹具实现只做编译和内存 CLI 验证，IDE 真实日志捕获/跳转仍需另开此独立树验收。
+
+实测记录：首次离线解析缺 Jackson/Groovy/Janino 等传递依赖，单模块联网补齐后编译通过，
+再跑上述离线命令成功。`--once` 退出码 0，真实日志路由为 100 → `ds_0/ui_order_0`、
+101 → `ds_1/ui_order_1`，跨片 SELECT 打出两个 Actual SQL；结果断言为
+`PASS cross-shard rows=[100:BOOK,100, 101:BOOK,101]`。
+管道输入 `100/101/all/both/quit` 已验证可重复查询并正常关闭；传 URL 参数在建连接前被拒绝。
+这里没有运行宿主 Spring 应用、用户 Handler 或 GUI；CLI 成功不等同于插件 UI 验收通过。
+
 ## 环境要求
 
 - JDK 1.8
@@ -55,7 +93,7 @@ cd mybatis-plus-demo && mvn clean compile
 ```
 
 > 根目录 `pom.xml` 为**聚合 POM**（packaging=pom，仅含 `<modules>`），作用是让 IDEA 能以多模块形式打开整个目录、以及提供统一的构建入口。
-> 各子项目是**独立 Maven 工程**：各自以 `spring-boot-starter-parent` 作为 parent，互不关联，也不继承根 pom 的任何依赖或属性。
+> 各子项目是**独立 Maven 工程**，不继承根 pom 的任何依赖或属性。原有应用与模型库以 `spring-boot-starter-parent` 作为 parent；`shardingsphere-h2-demo` 不使用 Boot parent，避免覆盖其真实传递依赖。
 >
 > 例外：`selfdev-framework-demo` 以依赖形式引用 `selfdev-shared-lib`（E 组 JAR 态语料）。
 > 根目录聚合构建会自动按依赖顺序先建后者；**单模块**构建 demo 前需先 `mvn install -pl selfdev-shared-lib`。

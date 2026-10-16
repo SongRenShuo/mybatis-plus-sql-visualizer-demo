@@ -7,7 +7,8 @@
     <!--
       聚合 POM（仅用于以多模块形式在 IDEA 中打开整个目录）。
       注意：这里的 modules 不构成父子继承关系——
-      各子项目仍以 spring-boot-starter-parent 作为自己的 parent，
+      原有应用与模型库以 spring-boot-starter-parent 作为自己的 parent，
+      shardingsphere-h2-demo 为无 Boot parent 的独立普通 JAR。
       本 POM 只负责聚合与统一构建入口，不向子项目传递任何依赖/属性。
     -->
     <groupId>cn.song</groupId>
@@ -18,6 +19,7 @@
     <description>mybatis-plus-sql-visualizer 插件测试用例 Demo 集合（多模块聚合）</description>
 
     <modules>
+        <module>shardingsphere-h2-demo</module>
         <module>mp-jar-model-lib</module>
         <module>mybatis-plus-demo</module>
         <module>mybatis-plus-join-demo</module>

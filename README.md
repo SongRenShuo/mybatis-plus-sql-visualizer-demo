@@ -16,6 +16,8 @@
 | [multi-orm-demo](multi-orm-demo) | 8085 / orm_demo | 其它 ORM 四家（插件 M44 识别器） | Querydsl（Q 类表达式树）、MyBatis Dynamic SQL（DSL 构建）、xbatis（Chain 链）、Easy-Query（proxy 链） |
 | [selfdev-framework-demo](selfdev-framework-demo) | 8086 / selfdev_demo | 自研框架帧过滤前缀（设置项专用语料） | 模拟不经 MyBatis 的自研数据访问引擎（`com.corp.engine` / `com.corp.meta`），34 端点覆盖 12 种调用形态 × 4 类查询/写形态 × 3 档委托深度 × 2 种帧来源（目录/JAR），用于验证「源码捕获帧过滤前缀」登记前后的跳转落点差异 |
 | [selfdev-shared-lib](selfdev-shared-lib) | — / —（非 Boot 应用） | 上面的 JAR 态语料 | 普通 JAR：`com.corp.platform.SqlKernel` + `com.corp.shared.util.PlanTreeQueryBuilder`，与 demo 侧目录态两个类逐行同构，唯一差异是「运行期来自依赖 JAR」——复现「SQL 执行点在 JAR 里的业务工具类 → 跳转上顶到调用方 Service」 |
+| [jpa-jar-model-demo](jpa-jar-model-demo) | 8088 / jpa_demo | 实体/嵌入类来自依赖 JAR 的嵌入列命名复现 | 实体、`@Embeddable`、仓库接口全在依赖 JAR [`jpa-jar-model-lib`](jpa-jar-model-lib) 里，宿主模块**无实体源码**（模块根不可知，命名约定只能靠工程级信号：`application.yml` 设置键 / Java 源码里的 `ImplicitNamingStrategyComponentPathImpl` 类名）；三个 `@Embedded` 零注解 + 二层嵌套（`itemKey.lotInfo.receivedDate`），配自定义 DAO 的拼接 HQL 与 StringBuffer 两种承载形态 |
+| [jpa-jar-model-lib](jpa-jar-model-lib) | — / —（非 Boot 应用） | 上面的 JAR 态语料 | 普通 JAR：`cn.song.jarlib.entity` 的 `WmsInventoryEntity` + `WmsInventoryQty`/`WmsSku`/`WmsItemKey`（内含静态嵌套 `LotInfo`）+ Spring Data 仓库接口，全部以依赖 JAR 形态加载，宿主无源码 |
 
 ## 环境要求
 
@@ -224,7 +226,11 @@ src/main/resources/
 | `HibernateTemplate.executeFind` | Spring 4.x（5.3 已删） | jpa-demo 5.3 |
 
 > 注意：各子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作聚合入口；新增 `selfdev-framework-demo` 后为六个 Boot 子项目，
-> 2026-09-23 再加其 JAR 态语料子工程 `selfdev-shared-lib`（非 Boot 应用），聚合模块共 7 个。
+> 2026-09-23 再加其 JAR 态语料子工程 `selfdev-shared-lib`（非 Boot 应用），2026-10-16 再加 JPA 的 JAR 态语料对
+> `jpa-jar-model-lib` + `jpa-jar-model-demo`（前者非 Boot 应用），聚合模块共 9 个。
+>
+> 例外二：`jpa-jar-model-demo` 以依赖形式引用 `jpa-jar-model-lib`（实体/嵌入类/仓库接口都在 JAR 里）。
+> 根目录聚合构建会自动按依赖顺序先建后者；**单模块**构建 demo 前需先 `mvn install -pl jpa-jar-model-lib`。
 
 ## 场景覆盖清单增补（2026-09-22 自研框架帧过滤前缀专用语料）
 

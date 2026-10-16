@@ -35,5 +35,12 @@
         <module>selfdev-framework-demo</module>
         <!-- 原生 MyBatis（mybatis-config.xml 单配置）语料：插件 3.25「自动注入拦截器」验收宿主 -->
         <module>native-mybatis-demo</module>
+        <!--
+          jpa-jar-model-lib 必须先于 jpa-jar-model-demo：后者以依赖 JAR 形态引它
+          （实体/嵌入类/仓库接口都在 JAR 里，宿主无源码）。单模块构建 demo 前需先
+          install 后者，详见 jpa-jar-model-lib/README.md。
+        -->
+        <module>jpa-jar-model-lib</module>
+        <module>jpa-jar-model-demo</module>
     </modules>
 </project>

@@ -1,0 +1,38 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: jpa-jar-model-demo
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/jpa_demo?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+  jpa:
+    # 演示环境：启动按实体自动建表/补列（生产请用 validate / none）
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        # ============================================================
+        # 复现关键：组件路径命名策略（Hibernate 官方短名 component-path，
+        # 即 org.hibernate.boot.model.naming.ImplicitNamingStrategyComponentPathImpl）。
+        #
+        # 这里走的是「配置形态 A：application.yml 里写设置键 implicit_naming_strategy」——
+        # 也是插件在「实体来自 JAR、模块根不可知」时能读到的工程级信号之一。
+        #
+        # 同一模块内两条路只能生效一条：
+        #   A（当前生效）本文件这一行；
+        #   B（可切换备选）Java 代码式配置 config/CodeBasedNamingStrategyConfig，
+        #     由 spring.profiles.active=code-naming 激活；切换时须把本行注释掉，
+        #     避免两条同时设置同名键（虽然值等价，但会让「哪条生效」不可判读）。
+        # ============================================================
+        implicit_naming_strategy: component-path
+    open-in-view: false
+
+logging:
+  level:
+    org.hibernate.SQL: debug

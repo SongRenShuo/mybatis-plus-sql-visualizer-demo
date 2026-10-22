@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+      JDK 21 复现工程：不继承 spring-boot-starter-parent，也不进 demo 仓的聚合 pom
+      （避免影响既有模块构建）。pom 只为 IDE 识别源码根；实际入口是 run.ps1。
+
+      与同仓 agent-premain-hostile-loader-repro 的区别：
+        那个用「敌意 ClassLoader」模拟 ASM 不可见，是**可控实验**；
+        本工程用「真实 -javaagent 子进程 + 从 jar 里删掉该类」，是**真机形态**，
+        更贴近用户现场，且不依赖任何模拟代码。
+    -->
+    <groupId>cn.song</groupId>
+    <artifactId>jdk21-premain-crash-demo</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <name>jdk21-premain-crash-demo</name>
+    <description>JDK 21 上复现并验证「第三方 agent 让重定位 ASM 不可见」导致插件 premain 致命的问题</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>21</maven.compiler.release>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <release>21</release>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

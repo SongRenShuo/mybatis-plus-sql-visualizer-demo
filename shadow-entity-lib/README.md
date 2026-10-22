@@ -54,6 +54,17 @@ mvnd.cmd -pl shadow-entity-lib install -o -DskipTests -Dmaven.source.skip=true
 `~/.m2/repository/cn/song/shadow-entity-lib/1.0.0/shadow-entity-lib-1.0.0-sources.jar` 一并删掉再让 IDE 重新解析，
 具体步骤见 [`shadow-entity-demo/README.md`](../shadow-entity-demo/README.md) 的「形态二」。
 
+## 走查「宿主真的在 JAR 内」档位的必要条件（重要）
+
+与 `selfdev-shared-lib` / `jpa-jar-model-lib` 同一类坑：IDEA 的 Maven workspace 解析只要发现本模块
+在同一个工程里，就会把 `shadow-entity-demo` 的依赖替换成兄弟模块的 `target/classes`（**目录形态**）。
+**目录形态下本用例复现不出缺陷**——DAO 与 HQL 成了「模块内容」，平台拿得到模块上下文，同 FQN
+双份按 classpath 序正常消解。走查前必须先让依赖以真 JAR 形态出现：
+
+1. 根目录 `mvnd install -pl shadow-entity-lib` 一次 → IDEA 的 Maven 面板对本模块执行
+   **Unload Projects**（依赖随即回落到本地仓库的 JAR），走查完再重新 Load；
+2. 或不以聚合形式打开：单独以 `shadow-entity-demo/pom.xml` 打开工程。
+
 ## 边界
 
 - 不引 Hibernate / Spring 的实现依赖：`spring-boot-starter-data-jpa` 声明为 `provided`，

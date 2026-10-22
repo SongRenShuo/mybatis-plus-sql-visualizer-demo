@@ -79,6 +79,22 @@ java -jar shadow-entity-demo/target/shadow-entity-demo-1.0.0.jar
 
 三个 `mode` 都返回 1 行，即运行期实体解析到影子版——这就是插件预览**应当**渲染出的那一版。
 
+## 走查前必做：让依赖真的以 JAR 形态出现（否则本用例形同虚设）
+
+与 `jpa-jar-model-lib` 同一类坑：IDEA 的 Maven workspace 解析只要发现 `shadow-entity-lib`
+在同一个工程里，就会把 `shadow-entity-demo` 的依赖替换成兄弟模块的 `target/classes`（**目录形态**）。
+目录形态下 DAO / HQL 源码是「模块内容」，平台拿得到模块上下文——**缺陷不会触发**
+（那正是下面对照组的行为）。所以走查前先确认依赖是真 JAR，二选一：
+
+1. 根目录 `mvnd.cmd -pl shadow-entity-lib install -o -DskipTests` 后，在 IDEA 的 **Maven 面板对
+   `shadow-entity-lib` 执行 Unload Projects**（依赖随即回落到本地仓库的 JAR），走查完再重新 Load；
+2. 或不打开聚合工程，**单独**以 `shadow-entity-demo/pom.xml` 打开（依赖只能从 `~/.m2` 取，天然是 JAR 形态）。
+
+自查方法：在 IDEA 里看 `WmsTaskJarDao` / `WmsTaskJarService` 打开的是哪个文件——
+路径指向 `shadow-entity-lib/target/classes` 或兄弟模块 `src/main/java` 就是目录形态（无效）；
+指向 `External Libraries → Maven: cn.song:shadow-entity-lib:1.0.0 → shadow-entity-lib-1.0.0-sources.jar`
+里的 `.java`，才是形态一（sources jar 附加）。
+
 ## 走查：两种 jar 形态都要测
 
 用户明确要求两种形态都能正常识别，本模块两种形态都能造出来。

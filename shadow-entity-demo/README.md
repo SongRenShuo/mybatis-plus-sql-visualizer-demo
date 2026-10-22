@@ -104,9 +104,13 @@ java -jar shadow-entity-demo/target/shadow-entity-demo-1.0.0.jar
 - **A（推荐）**：File → Project Structure → Libraries，找到 `Maven: cn.song:shadow-entity-lib:1.0.0`，
   删掉其中的 `shadow-entity-lib-1.0.0-sources.jar` 条目（只留主 JAR），Apply；若源码仍被缓存，
   右键该 jar → Detach Sources / 或 File → Invalidate Caches 后重启；
-- **B**：重装成不带 sources 的形态 —— `mvnd.cmd -pl shadow-entity-lib install -o -DskipTests -Dmaven.source.skip=true`，
-  并在 Maven 面板 Reload All Maven Projects；
-- **C**：直接删掉 `~/.m2/repository/cn/song/shadow-entity-lib/1.0.0/shadow-entity-lib-1.0.0-sources.jar`，再 Reload。
+- **B**：先把本地仓库里**已装的** sources jar 删掉——
+  `rm ~/.m2/repository/cn/song/shadow-entity-lib/1.0.0/shadow-entity-lib-1.0.0-sources.jar`
+  （只加构建开关不够：开关只让本次构建不再产出，不会清掉上次装进去的），
+  再用 `mvnd.cmd -pl shadow-entity-lib install -o -DskipTests -Dmaven.source.skip=true` 重装
+  （已实测该开关会打印 `Skipping source per configuration.` 且不再产出 sources jar），
+  最后在 Maven 面板 Reload All Maven Projects；
+- **C**：等价于 B 的删文件那一步（删 `~/.m2` 里的 sources jar）后 Reload，不改构建开关也行。
 
 操作：同样双击 JAR 里的 `WmsTask` / `WmsTaskJarDao`，这次打开的是 **反编译视图**
 （编辑器顶部有 `/* decompiled ... */` 提示，或标为 decompiled）；在该视图里把光标放到

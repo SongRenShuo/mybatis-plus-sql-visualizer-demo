@@ -48,6 +48,12 @@ D:/HuanJing/Maven/maven-mvnd-1.0.3/bin/mvnd.cmd -pl shadow-entity-lib install -o
 mvnd.cmd -pl shadow-entity-lib install -o -DskipTests -Dmaven.source.skip=true
 ```
 
+实测该开关会打印 `Skipping source per configuration.` 且不再产出 sources jar；
+但它**只让本次构建不再产出**，不会清掉上次已装进 `~/.m2` 的 sources jar——
+走查第二形态（无源码）时要把
+`~/.m2/repository/cn/song/shadow-entity-lib/1.0.0/shadow-entity-lib-1.0.0-sources.jar` 一并删掉再让 IDE 重新解析，
+具体步骤见 [`shadow-entity-demo/README.md`](../shadow-entity-demo/README.md) 的「形态二」。
+
 ## 边界
 
 - 不引 Hibernate / Spring 的实现依赖：`spring-boot-starter-data-jpa` 声明为 `provided`，

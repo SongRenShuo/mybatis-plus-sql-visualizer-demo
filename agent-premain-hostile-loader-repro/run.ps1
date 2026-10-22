@@ -182,12 +182,15 @@ $b2text = (& $javaExe @encArgs "-javaagent:$noOpcodesJar=port=45872" -cp $classp
 [System.IO.File]::WriteAllText($b2log, $b2text, (New-Object System.Text.UTF8Encoding($false)))
 Write-Host $b2text
 $b2exit = $LASTEXITCODE
-$b2ok = ($b2exit -ne 0) `
-    -and ($b2text -match 'NoClassDefFoundError:\s*cn/song/mybatisplus/sqlvis/agent/asm/Opcodes') `
-    -and ($b2text -match 'DriverRegistry\.isStatementWeavable') `
-    -and ($b2text -match 'FATAL ERROR in native method: processing of -javaagent failed')
-Write-Host ("[assert] B2 缺 Opcodes → NCDFE + FATAL ERROR（进程起不来）→ {0}" -f $(if ($b2ok) { 'PASS' } else { 'FAIL' })) `
-    -ForegroundColor $(if ($b2ok) { 'Green' } else { 'Red' })
+# T-JRebelPremainCrash 修复后预期（A 案 + B 案）：
+#  B 案把名单查询移出 implements Opcodes 的 StatementWeaver ⇒ premain 的谓词路径不再需要 ASM；
+#  A 案再兜住任何残余 Throwable ⇒ 即便 jar 真缺类，也只降级、不中止宿主。
+#  修复前基线：NCDFE + DriverRegistry.isStatementWeavable + JPLISAgent 断言 + FATAL ERROR，进程起不来。
+$b2ok = ($b2exit -eq 0) -and ($b2text -match 'exiting normally')
+$b2stillFatal = ($b2text -match 'FATAL ERROR in native method: processing of -javaagent failed')
+$b2pass = $b2ok -and (-not $b2stillFatal)
+Write-Host ("[assert] B2 缺 Opcodes → 修复后不再中止宿主（修复前为 FATAL ERROR）→ {0}" -f $(if ($b2pass) { 'PASS' } else { 'FAIL' })) `
+    -ForegroundColor $(if ($b2pass) { 'Green' } else { 'Red' })
 $results += [pscustomobject]@{ Cell = 'reproB2-missing-opcodes'; Exit = $(if ($b2ok) { 0 } else { 1 }); Expect = 0 }
 
 Write-Step "Repro B3 —— 自定义 system loader（-Djava.system.class.loader），JPLIS 重入形态"
@@ -199,21 +202,24 @@ Write-Host $b3text
 $b3exit = $LASTEXITCODE
 # 该形态必然进程起不来（FATAL ERROR）；异常类型随 JDK 版本在 NCDFE / ClassCircularityError 间摆动，
 # 因此这里只断言「失败点仍是 isStatementWeavable + 进程致命」。
-$b3ok = ($b3exit -ne 0) `
-    -and ($b3text -match 'DriverRegistry\.isStatementWeavable') `
-    -and ($b3text -match 'FATAL ERROR in native method: processing of -javaagent failed')
-Write-Host ("[assert] B3 自定义加载器 → 同一失败点 + FATAL ERROR → {0}" -f $(if ($b3ok) { 'PASS' } else { 'FAIL' })) `
-    -ForegroundColor $(if ($b3ok) { 'Green' } else { 'Red' })
+# 修复前：该形态必然进程起不来（FATAL ERROR），异常类型随 JDK 在 NCDFE / ClassCircularityError 间摆动。
+# 修复后（A 案 catch(Throwable)）：两类 Error 都应被兜住，进程正常启动。
+$b3ok = ($b3exit -eq 0) -and ($b3text -match 'exiting normally')
+$b3pass = $b3ok -and (-not ($b3text -match 'FATAL ERROR in native method: processing of -javaagent failed'))
+Write-Host ("[assert] B3 自定义加载器 → 修复后不中止宿主（修复前为 FATAL ERROR）→ {0}" -f $(if ($b3pass) { 'PASS' } else { 'FAIL' })) `
+    -ForegroundColor $(if ($b3pass) { 'Green' } else { 'Red' })
 $results += [pscustomobject]@{ Cell = 'reproB3-hostile-system-loader'; Exit = $(if ($b3ok) { 0 } else { 1 }); Expect = 0 }
 
 # ---------------------------------------------------------------- Repro C
 Write-Step "Repro C —— 守卫形态：premain 不得外抛（当前预期 KNOWN-FAIL，修复后应转绿）"
 $rc = Invoke-Cell 'reproC' @('-cp', $classpath, 'cn.song.sqlvis.repro.ReproMain', 'reproC', $AgentJar)
 $rcLog = [System.IO.File]::ReadAllText((Join-Path $OutDir 'reproC.log'))
-$cKnownFail = ($rcLog -match 'RESULT\[reproC\] = KNOWN-FAIL')
-Write-Host ("[assert] C 现状外抛（预期）→ {0}" -f $(if ($cKnownFail) { 'PASS(as-designed)' } else { 'UNEXPECTED' })) `
-    -ForegroundColor $(if ($cKnownFail) { 'Green' } else { 'Red' })
-$results += [pscustomobject]@{ Cell = 'reproC-known-fail'; Exit = $(if ($cKnownFail) { 0 } else { 1 }); Expect = 0 }
+# 修复后（A 案）：premain 不得外抛 ⇒ RESULT[reproC] = PASS。
+# 修复前基线：RESULT[reproC] = KNOWN-FAIL(expected)，failedChecks=2（C-after 两项红）。
+$cPass = ($rcLog -match 'RESULT\[reproC\] = PASS')
+Write-Host ("[assert] C 修复后 premain 不外抛（修复前为 KNOWN-FAIL）→ {0}" -f $(if ($cPass) { 'PASS' } else { 'FAIL' })) `
+    -ForegroundColor $(if ($cPass) { 'Green' } else { 'Red' })
+$results += [pscustomobject]@{ Cell = 'reproC-guard'; Exit = $(if ($cPass) { 0 } else { 1 }); Expect = 0 }
 
 # ---------------------------------------------------------------- 汇总
 Write-Step "汇总"

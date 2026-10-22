@@ -61,11 +61,10 @@ public final class ReproMain {
         if (failures == 0) {
             System.out.println("RESULT[" + cell + "] = PASS");
         } else {
-            System.out.println("RESULT[" + cell + "] = " + (cell.equals("reproC") ? "KNOWN-FAIL(expected)" : "FAIL")
-                    + "  failedChecks=" + failures);
+            System.out.println("RESULT[" + cell + "] = FAIL  failedChecks=" + failures);
         }
         // reproC 的失败是「当前行为的预期读数」，不算本格退出码失败；由调用方按 RESULT 行判读。
-        System.exit(cell.equals("reproC") ? 0 : (failures == 0 ? 0 : 1));
+        System.exit(failures == 0 ? 0 : 1);
     }
 
     // ------------------------------------------------------------------ Recon 0
@@ -95,69 +94,33 @@ public final class ReproMain {
         clearActiveMarker();
         FakeInstrumentation hostileInst = FakeInstrumentation.withStatementStub();
         Throwable thrown = runPremainCapturing(jar, true, hostileInst);
-        check("A2.premain-throws", thrown != null, thrown == null ? "premain 正常返回（复现失败）" : thrown.toString());
+        // T-JRebelPremainCrash 修复后预期：premain **不得外抛**。
+        //  - B 案把名单查询移出 implements Opcodes 的 StatementWeaver ⇒ 谓词路径不再需要 ASM；
+        //  - A 案再兜住任何残余 Throwable ⇒ 即便真失败也只降级。
+        // 修复前基线（2026-10-22 现场）：此处抛 NoClassDefFoundError ...asm/Opcodes，
+        // 栈顶 DriverRegistry.isStatementWeavable:61，最终 JVM 报 processJavaStart failed。
+        check("A2.premain-must-not-throw(fixed)",
+                thrown == null,
+                thrown == null ? "premain 正常返回（修复生效）"
+                        : "仍外抛 " + thrown + " —— 修复被破坏或前提已变");
 
-        if (thrown == null) {
+        if (thrown != null) {
+            // 修复被破坏时，尽量把现场信息打出来（便于归因），但本格已判红
+            Throwable cause = thrown instanceof InvocationTargetException
+                    ? ((InvocationTargetException) thrown).getTargetException()
+                    : thrown;
+            System.out.println("[NOTE] target exception = " + cause.getClass().getName() + ": " + cause.getMessage());
+            for (String f : agentFrames(cause)) {
+                System.out.println("        at " + f);
+            }
             return;
         }
-        check("A2.wrapped-in-InvocationTargetException",
-                thrown instanceof InvocationTargetException,
-                thrown.getClass().getName());
-
-        Throwable cause = thrown instanceof InvocationTargetException
-                ? ((InvocationTargetException) thrown).getTargetException()
-                : thrown;
-        System.out.println("[NOTE] target exception = " + cause.getClass().getName() + ": " + cause.getMessage());
-        if (cause.getCause() != null) {
-            System.out.println("[NOTE] target cause = " + cause.getCause().getClass().getName()
-                    + ": " + cause.getCause().getMessage());
-        }
-
-        check("A2.cause-is-NoClassDefFoundError",
-                cause instanceof NoClassDefFoundError,
-                cause.getClass().getName());
-
-        String msg = String.valueOf(cause.getMessage());
-        String normalized = msg.replace('/', '.');
-        check("A2.message-names-asm/Opcodes",
-                normalized.contains("cn.song.mybatisplus.sqlvis.agent.asm.Opcodes"),
-                "raw message = " + msg);
-
-        List<String> agentFrames = agentFrames(cause);
-        System.out.println("[NOTE] agent stack frames:");
-        for (String f : agentFrames) {
-            System.out.println("        " + f);
-        }
-        boolean topIsStatementPredicate = false;
-        for (String f : agentFrames) {
-            if (f.contains("DriverRegistry.isStatementWeavable")) {
-                topIsStatementPredicate = true;
-                break;
-            }
-        }
-        // 「栈顶帧」= 最内层的 agent 帧（列表第一个）
-        check("A2.innermost-agent-frame-is-isStatementWeavable",
-                topIsStatementPredicate && !agentFrames.isEmpty()
-                        && agentFrames.get(0).contains("isStatementWeavable"),
-                agentFrames.isEmpty() ? "无 agent 帧" : agentFrames.get(0));
-
-        // 补充证据：静态块的 Class.forName 确实成功了（若它失败，栈顶会是 AgentMain.<clinit>）
-        boolean clinitFailedFirst = false;
-        for (String f : agentFrames) {
-            if (f.contains("AgentMain.<clinit>")) {
-                clinitFailedFirst = true;
-                break;
-            }
-        }
-        check("A2.static-block-DriverRegistry-init-succeeded",
-                !clinitFailedFirst,
-                "AgentMain.<clinit> 的 Class.forName 静默成功 → 失败落在 premain 主路径，与现场一致");
-
-        // 同一 loader 下 DriverRegistry 已初始化完成（能调 isWeavable 说明其 clinit 跑完了）
-        System.out.println("[NOTE] 说明：DriverRegistry 静态块仅触碰 HashSet/Collections，不含 asm 依赖，"
-                + "因此 Class.forName 必然成功——这正是第一现场被吞掉、失败后移到 premain 的原因。");
-
-        // 记录被拒加载的类名，证明失败来自「asm 包不可见」这一策略
+        // 修复后必须留下「名单仍然工作」的正证据：循环走到了谓词（matched>=1）
+        check("A2.retransform-loop-still-reached-under-hostile-loader",
+                hostileInst.retransformCalls() >= 1,
+                "retransformCalls=" + hostileInst.retransformCalls()
+                        + "（>=1 证明谓词在 ASM 不可见时仍能正常判定）");
+        // （修复前的 A2 断言链已移除：它们在修复后已不可达；历史基线见本方法上方注释）
         System.out.println("[NOTE] denied class loads are printed by the loader above (DENY lines)");
     }
 
@@ -199,11 +162,15 @@ public final class ReproMain {
         // 断言的是「实测结论」，不是「主控假设」：假设说删接口能把失败点后移到 weave()，
         // 实测是**仍在原位、只是换了被拒的 ASM 类名**。若哪天实测变成「正常返回」，本格会红，
         // 提示结论需要重写。
-        check("H1.falsified: premain STILL throws after removing implements",
-                t != null,
-                t == null
-                        ? "premain 正常返回 —— 假设成立，README 结论需重写"
-                        : "仍抛 " + describeRoot(t) + "（假设不成立）");
+        // T-JRebelPremainCrash 修复后预期：删接口 jar 在 asm 不可见时**同样正常返回**
+        //（B 案下 premain 的谓词路径已不需要 ASM；A 案再兜住残余异常）。
+        // 修复前基线：仍在 isStatementWeavable:61 抛，只是被拒的 ASM 类名从 Opcodes 换成别的。
+        // 「H0.stripped-still-references-Opcodes-fields」仍是有效证据：删接口无法消除该字段依赖，
+        // 所以 B 案采用的是「名单外移到 WeaveSpecs」而非「删 implements」。
+        check("H1.premain-must-not-throw-after-strip(fixed)",
+                t == null,
+                t == null ? "premain 正常返回（修复生效；删接口仍无法消除 Opcodes 字段依赖 → 故 B 案用名单外移）"
+                        : "仍抛 " + describeRoot(t) + " —— 修复被破坏");
         if (t != null) {
             Throwable target = t instanceof InvocationTargetException
                     ? ((InvocationTargetException) t).getTargetException()
@@ -296,7 +263,9 @@ public final class ReproMain {
      * C-after 就会成为唯一的判据。反向验证：把修复摘掉必须让 C-after 变红。
      */
     private static void reproC(File jar) throws Exception {
-        final boolean assertBeforeFix = true;
+        // T-JRebelPremainCrash 修复已落地（2026-10-22）：翻转为 false —— C-after 成为唯一判据。
+        // 反向验证：把 A 案的 install 兜底摘掉，C-after 必须变红（实测过：摘掉 → 2 项红）。
+        final boolean assertBeforeFix = false;
 
         clearActiveMarker();
         FakeInstrumentation inst = FakeInstrumentation.withStatementStub();
@@ -314,12 +283,15 @@ public final class ReproMain {
         if (thrown != null) {
             frames = agentFrames(target);
         }
-        boolean reachedPredicate = !frames.isEmpty()
-                && frames.get(0).contains("DriverRegistry.isStatementWeavable");
-        check("C.装置有效: 栈帧证明循环走到了 isStatementWeavable",
+        // 装置鉴别力：修复后 premain 不再抛，故不能再用「栈帧落在谓词」当证据；
+        // 改用 FakeInstrumentation 的 retransformCalls —— 它只有在循环内三连谓词判定为
+        // weavable 之后才会被调用，>=1 即证明循环确实进入了并走完了谓词。
+        boolean reachedPredicate = inst.retransformCalls() >= 1;
+        check("C.装置有效: retransform 循环已进入谓词（retransformCalls>=1）",
                 reachedPredicate,
-                "innermost=" + (frames.isEmpty() ? "<无 agent 帧>" : frames.get(0))
-                        + "；getAllLoadedClasses=" + inst.getAllLoadedClasses().length + " 个");
+                "retransformCalls=" + inst.retransformCalls()
+                        + "；getAllLoadedClasses=" + inst.getAllLoadedClasses().length + " 个"
+                        + (frames.isEmpty() ? "" : "；innermost=" + frames.get(0)));
         check("C.装置有效: getAllLoadedClasses 含登记表桩类",
                 containsClass(inst.getAllLoadedClasses(), "com.mysql.cj.jdbc.StatementImpl"),
                 "否则循环 matched=0，任何「不抛」都是假绿");

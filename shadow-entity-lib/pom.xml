@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.6.3</version>
+        <relativePath/>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>cn.song</groupId>
+    <artifactId>shadow-entity-lib</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <name>shadow-entity-lib</name>
+    <description>shadow-entity-demo 的 JAR 态语料：@Entity / 自定义 DAO / HQL 字面量全部打包进依赖 JAR（宿主工程另有同包同名影子实体）</description>
+
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <java.version>1.8</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
+
+    <dependencies>
+        <!--
+          JPA 注解（javax.persistence）+ Spring 的构造型注解（@Repository/@Service）。
+          scope=provided：运行期由宿主工程（spring-boot-starter-data-jpa / -web）提供，
+          本 JAR 只承载「模型类 + DAO 类 + 带 HQL 的方法体」，不把 Hibernate / Spring 依赖
+          传递进宿主的依赖树。
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 纯 JAR 库，不做 spring-boot 重打包 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <!--
+              复现的关键之一：本 JAR 必须能打出 -sources.jar（「sources jar 附加」走查形态）。
+              既有 jpa-jar-model-lib 没配 sources 打包，故在此显式挂 maven-source-plugin；
+              版本由 spring-boot-starter-parent 2.6.3 统一管理，无需写 version。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

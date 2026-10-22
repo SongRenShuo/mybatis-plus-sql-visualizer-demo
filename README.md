@@ -24,6 +24,8 @@
 | [selfdev-shared-lib](selfdev-shared-lib) | — / —（非 Boot 应用） | 上面的 JAR 态语料 | 普通 JAR：`com.corp.platform.SqlKernel` + `com.corp.shared.util.PlanTreeQueryBuilder`，与 demo 侧目录态两个类逐行同构，唯一差异是「运行期来自依赖 JAR」——复现「SQL 执行点在 JAR 里的业务工具类 → 跳转上顶到调用方 Service」 |
 | [jpa-jar-model-demo](jpa-jar-model-demo) | 8088 / jpa_demo | 实体/嵌入类来自依赖 JAR 的嵌入列命名复现 | 实体、`@Embeddable`、仓库接口全在依赖 JAR [`jpa-jar-model-lib`](jpa-jar-model-lib) 里，宿主模块**无实体源码**（模块根不可知，命名约定只能靠工程级信号：`application.yml` 设置键 / Java 源码里的 `ImplicitNamingStrategyComponentPathImpl` 类名）；三个 `@Embedded` 零注解 + 二层嵌套（`itemKey.lotInfo.receivedDate`），配自定义 DAO 的拼接 HQL 与 StringBuffer 两种承载形态 |
 | [jpa-jar-model-lib](jpa-jar-model-lib) | — / —（非 Boot 应用） | 上面的 JAR 态语料 | 普通 JAR：`cn.song.jarlib.entity` 的 `WmsInventoryEntity` + `WmsInventoryQty`/`WmsSku`/`WmsItemKey`（内含静态嵌套 `LotInfo`）+ Spring Data 仓库接口，全部以依赖 JAR 形态加载，宿主无源码 |
+| [shadow-entity-demo](shadow-entity-demo) | 8089 / jpa_demo | 同包同名影子实体复现（jar 内宿主） | JAR 版实体 + 自定义 DAO + HQL 方法体全在依赖 JAR [`shadow-entity-lib`](shadow-entity-lib) 里，宿主源码里**另有**一份同 FQN 影子实体（表 `wms_task_project` vs JAR 版 `wms_task_jar`）；三个调用点（JAR 内 DAO / JAR 内 service / 工程内 service 对照组）复现「实体不可解析，降级为 `task.*`」，README 含 sources jar 附加与无源码反编译视图两种形态的走查步骤与预期读数 |
+| [shadow-entity-lib](shadow-entity-lib) | — / —（非 Boot 应用） | 上面的 JAR 态语料 | 普通 JAR：`com.example.shadow.model.WmsTask`（表 `wms_task_jar`）+ `CommonDao`（双数组 `findByQuery`）+ 带 HQL 字面量的 `WmsTaskJarDao` / `WmsTaskJarService`；配 `maven-source-plugin` 产出 `-sources.jar`（第二形态走查用） |
 
 ## 环境要求
 
@@ -233,10 +235,15 @@ src/main/resources/
 
 > 注意：各子项目为独立 Maven 工程（非聚合父子结构），根 `pom.xml` 仅作聚合入口；新增 `selfdev-framework-demo` 后为六个 Boot 子项目，
 > 2026-09-23 再加其 JAR 态语料子工程 `selfdev-shared-lib`（非 Boot 应用），2026-10-16 再加 JPA 的 JAR 态语料对
-> `jpa-jar-model-lib` + `jpa-jar-model-demo`（前者非 Boot 应用），聚合模块共 9 个。
+> `jpa-jar-model-lib` + `jpa-jar-model-demo`（前者非 Boot 应用），2026-10-22 再加同包同名影子实体复现对
+> `shadow-entity-lib` + `shadow-entity-demo`（前者非 Boot 应用），聚合模块共 11 个。
 >
 > 例外二：`jpa-jar-model-demo` 以依赖形式引用 `jpa-jar-model-lib`（实体/嵌入类/仓库接口都在 JAR 里）。
 > 根目录聚合构建会自动按依赖顺序先建后者；**单模块**构建 demo 前需先 `mvn install -pl jpa-jar-model-lib`。
+>
+> 例外三：`shadow-entity-demo` 以依赖形式引用 `shadow-entity-lib`（**JAR 版实体 + DAO + HQL 方法体**都在 JAR 里，
+> 宿主源码另有一份同 FQN 影子实体）。根目录聚合构建会自动按依赖顺序先建后者；
+> **单模块**构建 demo 前需先 `mvn install -pl shadow-entity-lib`。
 
 ## 场景覆盖清单增补（2026-09-22 自研框架帧过滤前缀专用语料）
 

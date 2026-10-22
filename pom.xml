@@ -42,5 +42,14 @@
         -->
         <module>jpa-jar-model-lib</module>
         <module>jpa-jar-model-demo</module>
+        <!--
+          shadow-entity-lib 必须先于 shadow-entity-demo：后者以依赖 JAR 形态引它
+          （JAR 版实体 + DAO + 带 HQL 的方法体都在 JAR 里），而宿主模块源码里另有一份
+          同包同名（同 FQN）的影子实体——复现「jar 内宿主叠加工程同 FQN 影子实体
+          致实体不可解析」缺陷。单模块构建 demo 前需先 install 后者，
+          详见 shadow-entity-lib/README.md。
+        -->
+        <module>shadow-entity-lib</module>
+        <module>shadow-entity-demo</module>
     </modules>
 </project>

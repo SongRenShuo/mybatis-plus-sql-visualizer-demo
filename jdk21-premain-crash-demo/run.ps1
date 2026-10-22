@@ -22,6 +22,17 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 控制台编码统一为 UTF-8：本脚本已带 BOM，故**脚本内**中文解析正常；但子进程（java）
+# 按 -Dstdout.encoding=UTF-8 写出 UTF-8 字节，而 PowerShell 5.1 控制台默认按系统代码页
+# （本机 GBK）解码 → 中文变「宕╂簝澶嶇幇」这类乱码。这里把输出侧也钉成 UTF-8。
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+} catch {
+    Write-Host '[WARN] 设置控制台 UTF-8 失败，中文可能显示为乱码（不影响判定结果）' -ForegroundColor Yellow
+}
+
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $OutDir) { $OutDir = Join-Path $here 'build\reports' }
 $buildDir = Join-Path $here 'build'

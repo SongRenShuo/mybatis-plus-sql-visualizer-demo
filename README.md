@@ -2,6 +2,12 @@
 
 [Sql Visualizer](https://gitee.com/SongRenShuo/mybatis-plus-sql-visualizer) 插件的测试用例 Demo 集合项目。
 
+本仓库双平台同步：**Gitee 是主仓**，**GitHub 是镜像**（[github.com/SongRenShuo/mybatis-plus-sql-visualizer-demo](https://github.com/SongRenShuo/mybatis-plus-sql-visualizer-demo)）。两边内容一致，克隆哪个都行；插件仓库的测试脚本默认按 Gitee 地址检出，换镜像时改 clone 命令即可。
+
+这个仓库的用途是给插件测试当语料，不是教程或脚手架：每个子项目都刻意写成「插件应该识别、或曾经识别错」的形态，所以代码里会有一些看起来别扭的写法（比如手工拼接 SQL、把 Wrapper 拆到私有方法里续链）。这些是测试输入，不是推荐用法。
+
+贡献说明与测试门槛见插件仓库的 [CONTRIBUTING.md](https://gitee.com/songrenshuo/mybatis-plus-sql-visualizer/blob/dev/CONTRIBUTING.md)。使用问题与功能建议请走[官网需求池](https://sql-visualizer.jvtools.cn/about/feedback)。
+
 本仓库包含多个相互独立的 Spring Boot 子项目（Maven 多模块仓库，每个子项目可单独构建运行），
 外加一个 JAR 态语料子工程（`selfdev-shared-lib`，非 Boot 应用），
 覆盖插件支持的各 ORM 主题与 SQL 来源形态，为插件提供真实、丰富的 SQL 预览 / SQL 生成测试场景：

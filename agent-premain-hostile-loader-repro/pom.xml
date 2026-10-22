@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+      独立复现工程：不继承 spring-boot-starter-parent，也不引用任何第三方依赖。
+      全部断言由一个无依赖的 main（ReproMain）执行，见 README「怎么跑」。
+      pom 只为 IDE 识别源码根；构建入口是 run.ps1。
+    -->
+    <groupId>cn.song</groupId>
+    <artifactId>agent-premain-hostile-loader-repro</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <name>agent-premain-hostile-loader-repro</name>
+    <description>复现「javaagent 增强捕获 + 第三方（JRebel 形态）类加载器」导致 premain 崩溃</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>17</maven.compiler.release>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <release>17</release>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

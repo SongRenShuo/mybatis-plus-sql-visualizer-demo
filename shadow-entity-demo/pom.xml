@@ -46,11 +46,18 @@
           shadow-entity-lib：JAR 版 WmsTask + CommonDao + 带 HQL 的 DAO/service 全在这个依赖 JAR 里，
           而宿主模块源码里**另有**一份同包同名的 com.example.shadow.model.WmsTask（影子类）。
           单模块构建本模块前需先 `mvnd install -pl shadow-entity-lib`（见 README）。
+
+          20261023 追加：改用 resources/lib 下的**本地 JAR 文件**（system scope），不再走兄弟模块
+          依赖——这是「非依赖场景」走查形态：IDEA 里该 JAR 只作为 Library 出现，shadow-entity-lib
+          模块可以从工程里 Unload/移除，插件看到的就是纯库文件（getModuleForFile 恒 null）。
+          两种形态（依赖模块 / 本地 jar 文件）都要能识别。
         -->
         <dependency>
             <groupId>cn.song</groupId>
             <artifactId>shadow-entity-lib</artifactId>
             <version>1.0.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/resources/lib/shadow-entity-lib-1.0.0.jar</systemPath>
         </dependency>
     </dependencies>
 
@@ -59,6 +66,10 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- system scope 的 jar 不在 Boot 重打包默认包含范围，显式声明以保证应用可运行 -->
+                    <includeSystemScope>true</includeSystemScope>
+                </configuration>
             </plugin>
         </plugins>
     </build>

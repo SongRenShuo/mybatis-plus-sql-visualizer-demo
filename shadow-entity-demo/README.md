@@ -83,23 +83,51 @@ java -jar shadow-entity-demo/target/shadow-entity-demo-1.0.0.jar
 
 与 `jpa-jar-model-lib` 同一类坑：IDEA 的 Maven workspace 解析只要发现 `shadow-entity-lib`
 在同一个工程里，就会把 `shadow-entity-demo` 的依赖替换成兄弟模块的 `target/classes`（**目录形态**）。
-目录形态下 DAO / HQL 源码是「模块内容」，平台拿得到模块上下文——**缺陷不会触发**
-（那正是下面对照组的行为）。所以走查前先确认依赖是真 JAR，二选一：
 
-1. 根目录 `mvnd.cmd -pl shadow-entity-lib install -o -DskipTests` 后，在 IDEA 的 **Maven 面板对
-   `shadow-entity-lib` 执行 Unload Projects**（依赖随即回落到本地仓库的 JAR），走查完再重新 Load；
-2. 或不打开聚合工程，**单独**以 `shadow-entity-demo/pom.xml` 打开（依赖只能从 `~/.m2` 取，天然是 JAR 形态）。
+> **20261023 更新（推荐走形态三）**：本模块依赖已改为 **system scope 指向
+> `src/main/resources/lib/shadow-entity-lib-1.0.0.jar`**（本地 JAR 文件），不再走兄弟模块依赖。
+> 这是最干净的「非依赖场景」：该 JAR 在 IDE 里**只以 Library 出现**，与聚合工程里有哪些模块无关。
+> 下面形态一 / 形态二的 Maven Unload 前置条件因此**可以跳过**。
+
+**重要**：workspace 目录形态**不是**「缺陷消失」，而是**换成了另一种缺陷**（20261023 用户实测）——
+此时宿主 DAO 属于 lib 模块内容、实体只在下游 demo 模块，依赖方向 demo→lib ⇒ lib 侧解析不到实体
+⇒ **零候选** ⇒ 同样降级为 `task.*`。该形态已由插件侧 W3「零候选拓宽」修复（`91400a3e`）。
 
 自查方法：在 IDEA 里看 `WmsTaskJarDao` / `WmsTaskJarService` 打开的是哪个文件——
-路径指向 `shadow-entity-lib/target/classes` 或兄弟模块 `src/main/java` 就是目录形态（无效）；
-指向 `External Libraries → Maven: cn.song:shadow-entity-lib:1.0.0 → shadow-entity-lib-1.0.0-sources.jar`
-里的 `.java`，才是形态一（sources jar 附加）。
+路径指向 `shadow-entity-lib/target/classes` 或兄弟模块 `src/main/java` 就是目录形态；
+指向 `shadow-entity-demo/src/main/resources/lib/shadow-entity-lib-1.0.0.jar`（或 `target/classes/lib/`
+的拷贝）才是形态三；指向 `~/.m2` 里的 `-sources.jar` 则是形态一。
 
-## 走查：两种 jar 形态都要测
+## 走查：三种 jar 形态都要测
 
-用户明确要求两种形态都能正常识别，本模块两种形态都能造出来。
+用户明确要求各种 jar 形态都能正常识别。
 
-### 形态一：sources jar 附加（默认形态）
+### 形态三：本地 JAR 文件（推荐，非依赖场景）
+
+依赖声明为 system scope，jar 文件在 `src/main/resources/lib/`：
+
+```xml
+<dependency>
+    <groupId>cn.song</groupId><artifactId>shadow-entity-lib</artifactId><version>1.0.0</version>
+    <scope>system</scope>
+    <systemPath>${project.basedir}/src/main/resources/lib/shadow-entity-lib-1.0.0.jar</systemPath>
+</dependency>
+```
+
+操作：
+
+1. Maven 面板 **Reload All Maven Projects**（让 IDEA 重新解析出这个 Library）；
+2. **可选但更纯粹**：Maven 面板对 `shadow-entity-lib` 执行 **Unload Projects**——本模块不再需要它，
+   工程里只剩一个 Library 条目；
+3. 在 **External Libraries** 里展开 `shadow-entity-lib-1.0.0.jar`（或它旁边的 sources jar），
+   双击 `WmsTaskJarService`，光标放到 `beAllocateSuccess` 里的 `commonDao.findByQuery(...)` 调用行；
+4. 看预览产物的表名与列清单。
+
+> 想更新这个本地 JAR（例如改了 `shadow-entity-lib` 的源码）：
+> `mvnd.cmd -pl shadow-entity-lib -DskipTests install`，然后把 `shadow-entity-lib/target/` 下新的
+> `shadow-entity-lib-1.0.0.jar` 与 `-sources.jar` 覆盖到本模块 `src/main/resources/lib/`。
+
+### 形态一：sources jar 附加（走兄弟模块依赖时）
 
 `shadow-entity-lib` 已配 `maven-source-plugin`，`install` 后 `~/.m2` 里同时有
 `shadow-entity-lib-1.0.0.jar` 与 `shadow-entity-lib-1.0.0-sources.jar`；IDEA 会自动挂上源码。
@@ -136,17 +164,18 @@ java -jar shadow-entity-demo/target/shadow-entity-demo-1.0.0.jar
 > `PsiFileFactory.createFileFromText` 造出的真 Java PSI），宿主元素同样不在 content 里 ⇒
 > **两种形态落在同一条降级链上**，这正是本用例要覆盖的第二形态。
 
-### 两种形态的预期读数
+### 三种形态的预期读数
 
-| 形态 | 修复前（当前实现） | 修复后（预期正确） |
+| 形态 | 修复前 | 修复后（预期正确） |
 |---|---|---|
-| sources jar 附加 | `select task.* /* 实体不可解析，降级为 task.* */` + `from unknown_table task`；并弹一次实体名歧义气球（候选清单里会出现两条相同的 FQN） | `select task.id, task.task_no, task.status, task.task_type, task.remark from wms_task_project task where ...` |
-| 无源码反编译视图 | 同上 | 同上 |
+| 形态三 本地 JAR 文件 | `select task.* /* 实体不可解析，降级为 task.* */` + `from unknown_table task` | `select task.id, task.task_no, task.status, task.task_type, task.remark from wms_task_project task where ...` |
+| 形态一 sources jar 附加 | 同上（并弹一次实体名歧义气球，候选清单出现两条相同 FQN） | 同上 |
+| 形态二 无源码反编译视图 | 同上 | 同上 |
 
-两种形态的**目标读数一致**：表名 `wms_task_project`、列清单含 `task_type` 与 `remark`。
+三种形态的**目标读数一致**：表名 `wms_task_project`、列清单含 `task_type` 与 `remark`。
 若渲染成 `wms_task_jar` + `type`（无 `remark`），说明取的是 JAR 版——同样是错的（运行期生效的是影子版）。
 
-对照组的读数：`ShadowTaskQueryService#findByStatusAndType`（工程内容里的调用点）**两种形态下都**应
+对照组的读数：`ShadowTaskQueryService#findByStatusAndType`（工程内容里的调用点）**各种形态下都**应
 正常渲染 `wms_task_project`，即「工程内宿主不复现」。
 
 ## 与其它模块的关系

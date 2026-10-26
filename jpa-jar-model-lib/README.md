@@ -51,3 +51,34 @@ D:/HuanJing/Maven/maven-mvnd-1.0.3/bin/mvnd.cmd -pl jpa-jar-model-lib install -o
   本 JAR 只承载模型类与注解，运行期实现由宿主工程提供。
 - 不声明 `META-INF/persistence.xml`：宿主是 Spring Boot JPA 引导，多一份 persistence.xml
   会改变持久化单元的装配路径（属于额外变量，不是本用例要复现的形态）。
+
+## 「lib 自带 resources 但无命名配置」档位（T-EmbeddedHostCascade，20261026 新增）
+
+`src/main/resources/META-INF/jpa-jar-model-lib.properties` 是本模块 20261026 新增的**普通资源文件**
+（真实 lib 常带 META-INF/mapper 等资源，但没有任何命名策略配置）。它把本模块从「无 resources 目录」
+变成「有 resources、扫不到命名配置」——这正是插件嵌入列命名判定的第三档形态：
+
+| 实体锚点形态 | 插件判定路径 | 结果 |
+|---|---|---|
+| JAR 态（依赖取 `~/.m2` JAR，锚点为 jar 条目） | 模块根不可知 → 工程级信号 | 宿主 `application.yml` 的 component-path 命中 |
+| workspace 代换态（依赖替换为本模块目录，**无 resources**） | 模块无 resources → 回落工程级信号 | 同上命中 |
+| **workspace 代换态 + 本模块有 resources（本档）** | 实体模块扫描 → 判不出 → **级联到查询宿主模块** | 宿主 component-path 命中（来源标签 `probe-hit-host`） |
+
+第三档在 20261026 之前的版本会判成无前缀（`base_qty`），真库是 `qty_base_qty`。插件修复后按
+「实体所在模块 → 查询宿主模块」级联（两档都判不出仍不回工程级扫描，多模块聚合根防兄弟配置外溢的
+契约不变）。
+
+### 本档走查步骤
+
+1. 插件侧用含 T-EmbeddedHostCascade 修复的构建（master `b3970e1f`+）。
+2. 保持默认 workspace 形态（无需 Unload Projects）——锚点为本模块源码/目录。
+3. 在 `jpa-jar-model-demo` 的 `WmsInventoryJarQueryService#findAvailableJarInventory`（或
+   `findAvailableJarInventoryByBuffer`）点预览图标。
+4. 预期 SQL 嵌入列带前缀：`qty_base_qty` / `sku_inventory_status` / `item_key_lot_info_received_date`，
+   表名 `wms_inventory_jar_demo`。
+5. IDE 日志过滤 `[T-EmbeddedIdentify]`：应见
+   `entity=WmsInventoryEntity field=qty naming=COMPONENT_PATH/probe-hit-host columns=[baseQty→qty_base_qty]`
+   ——`probe-hit-host` 即宿主级联生效的直接证据；若显示 `probe-miss` 则命名档判定失败。
+
+注意：改动了本模块 resources 后，若走 JAR 态走查需重新 `mvnd install` 让资源进 JAR；
+workspace 代换态（默认）直接生效。

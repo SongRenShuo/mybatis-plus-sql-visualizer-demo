@@ -100,6 +100,33 @@
         </dependency>
     </dependencies>
 
+    <!--环境切换：IDEA Maven 面板勾选 profile 即切数据源，默认 mysql。
+        spring-boot-starter-parent 已对 application*.yml 做 @..@ 占位符资源过滤，无需额外配置。
+        与 mybatis-plus-join-demo 的 dm/mysql 同一套机制，新增环境只加 profile + application-{id}.yml。-->
+    <profiles>
+        <profile>
+            <id>mysql</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <profiles.active>mysql</profiles.active>
+            </properties>
+        </profile>
+        <profile>
+            <id>pg</id>
+            <properties>
+                <profiles.active>pg</profiles.active>
+            </properties>
+        </profile>
+        <profile>
+            <id>gaussdb</id>
+            <properties>
+                <profiles.active>gaussdb</profiles.active>
+            </properties>
+        </profile>
+    </profiles>
+
     <build>
         <plugins>
             <plugin>

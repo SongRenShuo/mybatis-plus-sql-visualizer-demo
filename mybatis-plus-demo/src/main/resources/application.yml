@@ -2,6 +2,11 @@ server:
   port: 8081
 
 spring:
+  # 环境切换：IDEA Maven 面板勾选 profile（mysql 默认 / pg / gaussdb）→ 构建期替换成对应 Spring profile，
+  # 再去加载 application-{profile}.yml。写法与 mybatis-plus-join-demo 的 dm/mysql 同款
+  # （spring-boot-starter-parent 已对 application*.yml 做 @..@ 资源过滤）。
+  profiles:
+    active: @profiles.active@
   application:
     name: mybatis-plus-demo
   datasource:

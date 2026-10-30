@@ -88,6 +88,16 @@
             <version>42.7.4</version>
             <scope>runtime</scope>
         </dependency>
+
+        <!-- T-GaussDbDialect 验收：GaussDB 运行 profile（application-gaussdb.yml，runtime 即可）。
+             华为官方驱动，与插件 agent 侧 WeaveSpecs 登记的 com.huawei.gaussdb.jdbc.Driver 同一个包；
+             另有 opengauss 变体 com.huawei.opengauss.jdbc.Driver，本 profile 不用。 -->
+        <dependency>
+            <groupId>com.huaweicloud.gaussdb</groupId>
+            <artifactId>gaussdbjdbc</artifactId>
+            <version>506.0.0.b058-jdk7</version>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
     <build>

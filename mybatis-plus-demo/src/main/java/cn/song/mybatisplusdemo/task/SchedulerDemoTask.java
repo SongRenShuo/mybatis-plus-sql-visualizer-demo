@@ -26,8 +26,17 @@ public class SchedulerDemoTask {
         this.userMapper = userMapper;
     }
 
+    private int tick = 0;
+
     @Scheduled(fixedRate = 3000)
     public void pollUser() {
+        tick++;
+        if (tick == 1) {
+            userMapper.createDemoTable();
+        }
+        if (tick == 6) {
+            userMapper.dropDemoTable();
+        }
         User user = userMapper.selectById(1);
         log.info("scheduled poll: {}", user == null ? "none" : user.getUsername());
     }

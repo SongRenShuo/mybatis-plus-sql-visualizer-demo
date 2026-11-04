@@ -45,5 +45,7 @@
         -->
         <module>jpa-jar-model-lib</module>
         <module>jpa-jar-model-demo</module>
+        <!-- Oracle 增强捕获复现语料：MyBatis-Plus 业务 SQL 全走 PreparedStatement，见模块 README -->
+        <module>oracle-demo</module>
     </modules>
 </project>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- T-PagesHql 夹具：maintainPage 的 <datasource> 是 HQL（不是原生 SQL）。
+     插件按「根标识符 UserEntity == entityClass 简单名」判定 HQL，再用 HqlConverter
+     把实体名/属性名映射为表名/列名，并把 #{} 框架占位符转成命名参数。 -->
+<pages>
+    <maintainPage id="userHqlMaintain" title="用户维护（HQL）" autoQuery="true"
+                  entityClass="cn.song.jpademo.entity.UserEntity">
+        <datasource><![CDATA[
+select u.id, u.username, u.email, u.firstName, u.lastName, u.age
+  from UserEntity u
+ where u.username like :keyword
+   and u.id = #{SESSION_USER_ID}
+ order by u.id desc
+]]></datasource>
+        <columns>
+            <column id="u.id" title="ID" dataType="long" visible="true" sortable="true"/>
+            <column id="u.username" title="用户名" dataType="string" visible="true" sortable="true"/>
+            <column id="u.email" title="邮箱" dataType="string" visible="true" sortable="false"/>
+            <column id="u.firstName" title="姓" dataType="string" visible="true" sortable="false"/>
+            <column id="u.lastName" title="名" dataType="string" visible="true" sortable="false"/>
+            <column id="u.age" title="年龄" dataType="int" visible="true" sortable="true"/>
+        </columns>
+    </maintainPage>
+</pages>

@@ -1,0 +1,21 @@
+spring:
+  main:
+    web-application-type: none
+    banner-mode: off
+  datasource:
+    driver-class-name: oracle.jdbc.OracleDriver
+    # 测试服务器上的 Oracle Free 23 实例（容器 xc3-oracle-free，宿主机 103.36.220.245:21521）
+    url: jdbc:oracle:thin:@//103.36.220.245:21521/FREEPDB1
+    username: probe
+    password: Probe_2026
+    hikari:
+      maximum-pool-size: 2
+      minimum-idle: 1
+      # 现场「只打印 select 1 from dual」的来源：连接校验走 plain Statement + 内联 SQL
+      connection-test-query: select 1 from dual
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    # 关掉 MyBatis 自身的 SQL 日志：判据只看 agent 事件，避免两路输出混淆
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl

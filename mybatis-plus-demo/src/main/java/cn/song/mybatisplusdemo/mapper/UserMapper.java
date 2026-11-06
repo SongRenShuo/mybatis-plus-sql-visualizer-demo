@@ -22,6 +22,18 @@ import java.util.List;
 public interface UserMapper extends BaseMapper<User> {
 
     /**
+     * 演示录制 N3 前置：DDL 条目（CREATE 段）进 SQL 日志
+     */
+    @Update("CREATE TABLE IF NOT EXISTS mpsv_tmp_ddl_demo (id INT)")
+    int createDemoTable();
+
+    /**
+     * 演示录制 N3 前置：DDL 条目（DROP 段）进 SQL 日志
+     */
+    @Update("DROP TABLE IF EXISTS mpsv_tmp_ddl_demo")
+    int dropDemoTable();
+
+    /**
      * 注解 SQL：纯文本 + 参数占位
      */
     @Select("SELECT * FROM user WHERE id = #{id}")

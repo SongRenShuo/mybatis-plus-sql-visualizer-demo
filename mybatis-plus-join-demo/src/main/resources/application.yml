@@ -4,9 +4,13 @@ server:
 spring:
   application:
     name: mybatis-plus-join-demo
-  # 由 Maven profile 注入：默认 mysql，IDEA Maven 面板勾选 dm 切达梦（application-dm.yml）
+  # 由 Maven profile 注入：默认 mysql，IDEA Maven 面板勾选 dm 切达梦（application-dm.yml）。
+  # 占位符必须带引号：IDEA 自己的 Build 不走 maven-resources-plugin 过滤，会把占位符原样拷进
+  # target/classes，而裸 @ 是 YAML 非法起始字符 → 应用直接起不来（2026-10-30 实测
+  # ScannerException: found character '@' that cannot start any token）。
+  # 带引号后未过滤时只是一个无害的未知 profile 名，应用仍以 application.yml 的基础配置启动。
   profiles:
-    active: @profiles.active@
+    active: "@profiles.active@"
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # sql_mode=ANSI_QUOTES：双引号按标识符解析，与达梦侧 "user" 写法共用同一实体标注

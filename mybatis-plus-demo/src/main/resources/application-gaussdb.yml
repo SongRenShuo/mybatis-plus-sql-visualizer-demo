@@ -1,0 +1,19 @@
+# GaussDB 数据源 profile：方言渲染 / 执行 / 增强捕获 attach 验收用
+#
+# 用法：--spring.profiles.active=gaussdb（或 mvn spring-boot:run -Dspring-boot.run.profiles=gaussdb）
+# 目标实例：GaussDB Kernel 503.1.0 @ 103.36.220.245:25882 / xc3_test
+#   ⚠️ 兼容模式 A，2023-03 构建的老内核（version() 原文 gaussdb (GaussDB Kernel 503.1.0 build f53b4ed8)），
+#      兼容模式仍是老命名 A/B/C/PG，而 GaussDB 5.x/6.x 用新命名 —— 据此得出的方言结论必须标注
+#      「Kernel 503.1.0」，不得写成「GaussDB 已验证」。
+# 建表：先跑 db/schema-gaussdb.sql（PG 族口径）。它与 db/schema.sql 的 MySQL 口径不通用：
+#   反引号去掉、AUTO_INCREMENT 换 SERIAL、DATETIME 换 TIMESTAMP、TINYINT 换 SMALLINT、内联 KEY 换独立索引。
+# 已知坑："user" 是 PG 族保留字（实测 create table user 直接 syntax error at or near "user"），
+#   建表与查询都必须带双引号。demo 实体 User 的 @TableName("user") 生成的是未加引号的 FROM user，
+#   在 GaussDB 上会报语法错 —— 验 User 相关链时把方言设成 GaussDB 看渲染即可，别点执行；
+#   要验执行/EXPLAIN 请用 department / sys_config / t_order / wkfl_* 这些不撞保留字的实体。
+spring:
+  datasource:
+    driver-class-name: com.huawei.gaussdb.jdbc.Driver
+    url: jdbc:gaussdb://103.36.220.245:25882/xc3_test
+    username: xc3
+    password: Xc3_gaussdb_2026

@@ -23,9 +23,20 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
+        <!-- 磐维 JDBC 驱动版本：默认 2.0.0（两代类形一致，插件侧同一套三面登记覆盖）；
+             需要验 V1 时 mvn -Dpanweidb.version=1.0.0 ... -->
+        <panweidb.version>2.0.0</panweidb.version>
     </properties>
 
     <dependencies>
+        <!-- 仅静态预览夹具使用；单模块导入时从本地仓库解析普通模型 JAR。 -->
+        <dependency>
+            <groupId>cn.song</groupId>
+            <artifactId>mp-jar-model-lib</artifactId>
+            <version>1.0.0</version>
+            <scope>test</scope>
+        </dependency>
+
         <!--spring-boot-starter-web-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -80,7 +91,74 @@
             <version>42.7.4</version>
             <scope>runtime</scope>
         </dependency>
+
+        <!-- T-GaussDbDialect 验收：GaussDB 运行 profile（application-gaussdb.yml，runtime 即可）。
+             华为官方驱动，与插件 agent 侧 WeaveSpecs 登记的 com.huawei.gaussdb.jdbc.Driver 同一个包；
+             另有 opengauss 变体 com.huawei.opengauss.jdbc.Driver，本 profile 不用。 -->
+        <dependency>
+            <groupId>com.huaweicloud.gaussdb</groupId>
+            <artifactId>gaussdbjdbc</artifactId>
+            <version>506.0.0.b058-jdk7</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- T-IbatisPanwei 真机验收：磐维 V1 驱动连 GaussDB 内核（application-panwei-gaussdb.yml）。
+             驱动不在公共 Maven，首次使用先装本机仓库（jar 在插件仓 database-lab/vendor/drivers/）：
+               mvn install:install-file \
+                 -Dfile=<插件仓>/database-lab/vendor/drivers/panweidb-jdbc-2.0.0.jar \
+                 -DgroupId=org.panweidb -DartifactId=panweidb-jdbc -Dversion=2.0.0 -Dpackaging=jar
+             runtime 即可（Spring 按 driver-class-name 反射加载）。驱动 acceptsURL 只认
+             jdbc:panweidb: / jdbc:dws:iam:，jdbc:gaussdb: 会被拒。版本由 ${panweidb.version} 控制。 -->
+        <dependency>
+            <groupId>org.panweidb</groupId>
+            <artifactId>panweidb-jdbc</artifactId>
+            <version>${panweidb.version}</version>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
+
+    <!--环境切换：IDEA Maven 面板勾选 profile 即切数据源，默认 mysql。
+        spring-boot-starter-parent 已对 application*.yml 做 @..@ 占位符资源过滤，无需额外配置。
+        与 mybatis-plus-join-demo 的 dm/mysql 同一套机制，新增环境只加 profile + application-{id}.yml。-->
+    <profiles>
+        <profile>
+            <id>mysql</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <profiles.active>mysql</profiles.active>
+            </properties>
+        </profile>
+        <profile>
+            <id>pg</id>
+            <properties>
+                <profiles.active>pg</profiles.active>
+            </properties>
+        </profile>
+        <profile>
+            <id>gaussdb</id>
+            <properties>
+                <profiles.active>gaussdb</profiles.active>
+            </properties>
+        </profile>
+        <profile>
+            <!-- T-IbatisPanwei：磐维 V1/V2 驱动 + GaussDB 内核（同一个 xc3_test 实例）。
+                 验插件对 org.panweidb.Driver 的增强捕获三面登记与 jdbc:panweidb: 的角标/方言映射。 -->
+            <id>panwei-gaussdb</id>
+            <properties>
+                <profiles.active>panwei-gaussdb</profiles.active>
+            </properties>
+        </profile>
+        <profile>
+            <!-- T-IbatisPanwei 真机：磐维 PanWeiDB 3.4.0（测试服务器 26101，datcompatibility=A/Oracle）。
+                 这才是「正常数据库」那一档；GaussDB profile 只作驱动内核无关性的旁证。 -->
+            <id>panwei</id>
+            <properties>
+                <profiles.active>panwei</profiles.active>
+            </properties>
+        </profile>
+    </profiles>
 
     <build>
         <plugins>

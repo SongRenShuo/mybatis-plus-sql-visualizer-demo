@@ -1,0 +1,20 @@
+# 磐维 PanWeiDB 真机 profile（T-IbatisPanwei 真机验收，2026-11-06 起可用）
+#
+# 目标实例：测试服务器 103.36.220.245:26101，容器 panweidb-ora，`datcompatibility=A`（Oracle 兼容：
+#   `select dummy from dual` → X）。同一宿主另有 26100（B/MySQL 档）的 panweidb-test。
+#   镜像来源＝阿里云 ACN 深圳 `shine_fei/panweidb:3.4.0`（**个人命名空间重打包，非厂商官方分发**），
+#   实例与凭据台账见插件仓 `.local/test-databases.md`（不入库）。
+#
+# 建表：`resources/db/schema-gaussdb.sql`——已在本库与 postgres 库各执行一遍（58/0）。
+# 已知坑沿用 gaussdb profile：`"user"` 是 PG 族保留字，实体 `@TableName("user")` 生成的
+# 未加引号 `FROM user` 会语法错，验执行/EXPLAIN 请用 department / sys_config / t_order / wkfl_*。
+spring:
+  datasource:
+    driver-class-name: org.panweidb.Driver
+    url: jdbc:panweidb://103.36.220.245:26101/panweidb
+    username: pwadmin
+    password: Panwei@2026
+
+logging:
+  level:
+    org.panweidb: warn

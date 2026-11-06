@@ -1,0 +1,27 @@
+# 磐维 V1 驱动 + GaussDB 内核的真机验收 profile（T-IbatisPanwei）。
+#
+# 用途：验证插件对 org.panweidb.Driver 的增强捕获三面登记（connect / 语句 / prepare），
+#      以及 jdbc:panweidb: 的角标与方言映射（插件默认档映射 Oracle）。
+#
+# 目标实例与 application-gaussdb.yml 同一个：GaussDB Kernel 503.1.0 @ 103.36.220.245:25882 / xc3_test。
+# 磐维驱动（panweidb-jdbc-1.0.0.jar，openGauss-connector-jdbc 整包重命名）跑在 GaussDB 内核上，
+# version() 返回 gaussdb (GaussDB Kernel 503.1.0 build f53b4ed8)——**结论口径写「GaussDB 503.1.0 +
+# 磐维 V1 驱动」，不得写「磐维真机已验证」**（服务端不是磐维）。
+#
+# 两条硬约束：
+#   1) 驱动 acceptsURL 只认 jdbc:panweidb: / jdbc:dws:iam:，jdbc:gaussdb: 会被拒；
+#   2) 不加 db_compatibility——它是客户端参数，oracle 档会把结果集列名全大写返回，
+#      可能破坏 map-underscore-to-camel-case；而插件对 jdbc:panweidb: 的默认档本就是 Oracle。
+#
+# 建表：resources/db/schema-gaussdb.sql（PG 族口径）。验执行/EXPLAIN 用 department / sys_config /
+# t_order / wkfl_* 这些不撞保留字的实体；"user" 是 PG 族保留字，验 User 链只看渲染别点执行。
+spring:
+  datasource:
+    driver-class-name: org.panweidb.Driver
+    url: jdbc:panweidb://103.36.220.245:25882/xc3_test
+    username: xc3
+    password: Xc3_gaussdb_2026
+
+logging:
+  level:
+    org.panweidb: warn

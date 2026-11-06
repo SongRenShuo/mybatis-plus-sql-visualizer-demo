@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.6.3</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>cn.song</groupId>
+  <artifactId>oracle-demo</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+  <name>oracle-demo</name>
+  <description>Oracle 增强捕获复现语料：MyBatis-Plus 业务 SQL 走 PreparedStatement，用来观察 agent 事件产出</description>
+
+  <!-- 形态要点（为什么长这样）：
+       - 与 mybatis-plus-demo 同源（Spring Boot 2.6.3 + MP 3.5.7 + JDK8），但**不启 web**：
+         CommandLineRunner 跑完即退出，复现不需要端口与请求；
+       - 显式配 Hikari `connection-test-query: select 1 from dual`：现场「只打印 select 1 from dual」的
+         来源就是这类连接校验（plain Statement + 内联 SQL），保留它才能一比一复现现象；
+       - 业务语句全部走 MyBatis-Plus BaseMapper（PreparedStatement 无参 executeQuery 形态）——
+         这是缺陷发生时被整段丢掉的那一半。 -->
+  <properties>
+    <java.version>1.8</java.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <mybatis-plus.version>3.5.7</mybatis-plus.version>
+    <ojdbc.version>23.7.0.25.01</ojdbc.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-boot-starter</artifactId>
+      <version>${mybatis-plus.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.oracle.database.jdbc</groupId>
+      <artifactId>ojdbc8</artifactId>
+      <version>${ojdbc.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

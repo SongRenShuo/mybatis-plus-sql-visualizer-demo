@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- T-PagesHql 夹具 2：没有 entityClass / 没有 type 的通用 SQL 载体（<dataValue>）。
+     插件按「根标识符能解析为持久化实体且表名不同」自动判 HQL，再走 HqlConverter 转换；
+     根名是表名（如 t_order）时保持原生 SQL 直显。 -->
+<pageConfig>
+    <query id="userDataValueHql">
+        <dataValue><![CDATA[
+select u.id, u.username, u.firstName, u.lastName
+  from UserEntity u
+ where u.username like :keyword
+]]></dataValue>
+    </query>
+    <query id="orderDataValueSql">
+        <dataValue><![CDATA[
+SELECT o.id, o.order_no FROM t_order o WHERE o.status = ?
+]]></dataValue>
+    </query>
+</pageConfig>

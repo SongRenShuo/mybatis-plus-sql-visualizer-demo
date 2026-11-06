@@ -23,6 +23,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
+        <!-- 磐维 JDBC 驱动版本：默认 2.0.0（两代类形一致，插件侧同一套三面登记覆盖）；
+             需要验 V1 时 mvn -Dpanweidb.version=1.0.0 ... -->
+        <panweidb.version>2.0.0</panweidb.version>
     </properties>
 
     <dependencies>
@@ -102,14 +105,14 @@
         <!-- T-IbatisPanwei 真机验收：磐维 V1 驱动连 GaussDB 内核（application-panwei-gaussdb.yml）。
              驱动不在公共 Maven，首次使用先装本机仓库（jar 在插件仓 database-lab/vendor/drivers/）：
                mvn install:install-file \
-                 -Dfile=<插件仓>/database-lab/vendor/drivers/panweidb-jdbc-1.0.0.jar \
-                 -DgroupId=org.panweidb -DartifactId=panweidb-jdbc -Dversion=1.0.0 -Dpackaging=jar
+                 -Dfile=<插件仓>/database-lab/vendor/drivers/panweidb-jdbc-2.0.0.jar \
+                 -DgroupId=org.panweidb -DartifactId=panweidb-jdbc -Dversion=2.0.0 -Dpackaging=jar
              runtime 即可（Spring 按 driver-class-name 反射加载）。驱动 acceptsURL 只认
-             jdbc:panweidb: / jdbc:dws:iam:，jdbc:gaussdb: 会被拒。 -->
+             jdbc:panweidb: / jdbc:dws:iam:，jdbc:gaussdb: 会被拒。版本由 ${panweidb.version} 控制。 -->
         <dependency>
             <groupId>org.panweidb</groupId>
             <artifactId>panweidb-jdbc</artifactId>
-            <version>1.0.0</version>
+            <version>${panweidb.version}</version>
             <scope>runtime</scope>
         </dependency>
     </dependencies>

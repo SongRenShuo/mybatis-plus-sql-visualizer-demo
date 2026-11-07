@@ -49,6 +49,10 @@ public class RuntimeConcatReproController {
      * 与后面的 {@code and create_time >= ...} 之间的空白/括号完整。
      *
      * <p>GET /runtimeConcat/loopTernary?ids=1,2&startTime=2026-01-01%2000:00:00
+     *
+     * <p><b>填值后期望 SQL</b>（循环值 `1,2,3`、startTime `2026-01-01 00:00:00`）：
+     * {@code WHERE (id='1' or id='2' or id='3' ) and create_time >= '2026-01-01 00:00:00'}，
+     * 无残留占位注释。
      */
     @GetMapping("/loopTernary")
     public List<Map<String, Object>> listByLoopTernary(@RequestParam List<Long> ids,
@@ -69,6 +73,10 @@ public class RuntimeConcatReproController {
      * 后面的 {@code ORDER BY} 与 LIKE 条件保持完整。
      *
      * <p>GET /runtimeConcat/ternaryBranch?keyword=NO&status=1
+     *
+     * <p><b>填值后期望 SQL</b>（选「假分支」、status `1`、keyword `NO`）：
+     * {@code WHERE 1 = 1 AND status = 1 AND order_no LIKE '%NO%'}；参数区**不应**出现 `#param1`
+     * ——三元占位注释里的 `?` 是 Java 问号，不是 JDBC 占位符（T-RuntimeSlotOptionalFill）。
      */
     @GetMapping("/ternaryBranch")
     public List<Map<String, Object>> listByTernaryBranch(@RequestParam String keyword,
@@ -86,6 +94,11 @@ public class RuntimeConcatReproController {
      * <p>预览关注点：可选条件以注释标记呈现，不与被跳过的分支线性拼接；末尾 {@code ORDER BY} 不被吞。
      *
      * <p>GET /runtimeConcat/optionalIf?keyword=NO&minAmount=100
+     *
+     * <p><b>填值后期望 SQL</b>（勾选两段、keyword `111`、minAmount `111`）：
+     * {@code WHERE deleted = 0 AND order_no LIKE '%111%' AND amount >= 111}——keyword 落在模板引号内
+     * 只转义不补外层引号，minAmount 就地填值、**不得**出现 `AND amount >=` 悬空/重复行；
+     * 取消「包含这段」→ 对应整段消失，`ORDER BY` 仍在（T-RuntimeSlotOptionalFill）。
      */
     @GetMapping("/optionalIf")
     public List<Map<String, Object>> listByOptionalIf(@RequestParam(required = false) String keyword,

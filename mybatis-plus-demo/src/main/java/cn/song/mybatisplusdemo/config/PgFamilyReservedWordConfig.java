@@ -19,11 +19,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * GaussDB 保留字表名修正配置（仅 gaussdb profile 生效）
+ * PG 族保留字表名修正配置（gaussdb / pg profile 生效）
  *
- * <p>根因：{@code user} 在 PG 族（GaussDB Kernel 503.1.0，兼容模式 A）里是保留字/系统视图名。
- * 建表必须写 {@code create table "user" (...)}，否则报 {@code syntax error at or near "user"}；
- * 查询时裸 {@code user} 会被解析成内置系统视图（实测 {@code select count(*) from user} 返回 1 行，
+ * <p>根因：{@code user} 在 PG 族（PostgreSQL、GaussDB Kernel 503.1.0、PanWeiDB 等兼容模式 A 系）
+ * 里是保留字/系统函数名。建表必须写 {@code create table "user" (...)}，否则报
+ * {@code syntax error at or near "user"}；查询时裸 {@code user} 会被解析成内置系统函数
+ * {@code user}（即 {@code current_user}，实测 {@code select count(*) from user} 返回 1 行，
  * 而 {@code select count(*) from "user"} 返回种子数据的 4 行），于是 demo 里所有
  * {@code @TableName("user")} 生成的 SQL 报 {@code column "id" does not exist} /
  * {@code column "deleted" does not exist}。
@@ -44,8 +45,8 @@ import java.util.regex.Pattern;
  * @author SongRenShuo
  */
 @Configuration
-@Profile("gaussdb")
-public class GaussDbReservedWordConfig {
+@Profile({"gaussdb", "pg"})
+public class PgFamilyReservedWordConfig {
 
     /**
      * 注册保留字表名修正拦截器。
@@ -53,7 +54,7 @@ public class GaussDbReservedWordConfig {
      * 因此只需声明 Bean，不必手动 {@code configuration.addInterceptor}。
      */
     @Bean
-    public Interceptor gaussDbReservedWordInterceptor() {
+    public Interceptor pgFamilyReservedWordInterceptor() {
         return new ReservedWordTableNameInterceptor();
     }
 

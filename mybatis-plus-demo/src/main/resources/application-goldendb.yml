@@ -1,0 +1,21 @@
+# GoldenDB 数据源 profile：T-GoldenDbDemoCases（GoldenDB 方言 demo 用例）attach 验收用
+#
+# 驱动：中兴 GoldenDB 自研 JDBC（MySQL 协议，SPI 类 com.goldendb.jdbc.Driver，
+#       版本 5.1.46.99，见主仓 database-lab/vendor/drivers/gdb_mysql-connector-java-oracle-5.1.46.99.jar
+#       与 docs/开发计划/20261107-0901-T-GoldenDbDialect-* §1.1）。
+#       jar 以 pom.xml 的 goldendb-driver profiles（system scope）接入：
+#       默认按「本仓嵌在主仓 .worktrees 下」的相对路径找厂商 jar，也可用 -Dgoldendb.jdbc.jar=<path> 指定。
+#
+# 用法：GoldenDB 真机建库 gdb_demo 后（建表脚本 db/schema.sql，GoldenDB 完全兼容 MySQL 客户端）：
+#   --spring.profiles.active=goldendb
+#   或环境变量 GOLDENDB_URL / GOLDENDB_USER / GOLDENDB_PASSWORD（默认值即下方占位，未部署真机时启动会连接失败属预期）。
+# attach 增强捕获后走 /logFeed/heartbeat（SELECT 1，不依赖业务表）即可验证事件到达，
+# /goldendb/**、/logFeed/** 业务端点需先按 db/schema.sql 建表。
+# 对照：无 GoldenDB 真机时可用 MySQL 8 实例跑形态级对照（GoldenDB 完全兼容 MySQL 客户端，手册 p37），
+#       此时用默认 application.yml 的 MySQL 数据源即可，无需本 profile。
+spring:
+  datasource:
+    driver-class-name: com.goldendb.jdbc.Driver
+    url: ${GOLDENDB_URL:jdbc:goldendb://127.0.0.1:8100/gdb_demo}
+    username: ${GOLDENDB_USER:gdb}
+    password: ${GOLDENDB_PASS:gdb}

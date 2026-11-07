@@ -124,6 +124,32 @@ cd mybatis-plus-demo && mvn clean compile
 > `selfdev-framework-demo` 以「起服务即可 curl」为目标启用了自动初始化，且显式声明 `spring.sql.init.encoding: UTF-8`——
 > 不声明时按平台默认字符集读取脚本，Windows 下（GBK）会把脚本里的中文写成乱码。
 
+## GoldenDB 方言 demo 用例（T-GoldenDbDemoCases）
+
+`mybatis-plus-demo` 内置一组 GoldenDB 方言用例（主仓调研册
+`docs/开发计划/20261107-0901-T-GoldenDbDialect-*` 的 demo 落地面），三个用途：
+
+1. **插件预览演示**：`GoldenDbDialectDemo*` 的 Wrapper 链 / 注解 SQL 覆盖 GoldenDB 方言关键面——
+   分页 `LIMIT offset,count`（offset 0 起算 p73）、upsert `ON DUPLICATE KEY UPDATE`（p66）、
+   多行 VALUES（p66）、`DELETE ... ORDER BY ... LIMIT n`（p274/p276）、
+   反引号 + 保留字列名 `storagedb`/`order`（p320、p351-355）、事务 `START TRANSACTION`（p83）；
+   `REPLACE INTO`（p281-282）由对照用例覆盖。真机到位后以
+   `--spring.profiles.active=goldendb` 启动（`application-goldendb.yml`，环境变量
+   `GOLDENDB_URL`/`GOLDENDB_USER`/`GOLDENDB_PASS` 可覆盖占位端点），插件 attach 增强捕获后走
+   `/logFeed/**`、业务端点 `/goldendb/**`。
+2. **JUnit 用例族**（`mybatis-plus-demo/src/test/java/cn/song/mybatisplusdemo/goldendb/`）：
+   每个方言族至少 1 例，全部走环境变量端点、凭据不落代码——`GOLDENDB_URL`（GoldenDB 真机，
+   未设置 ⇒ 整族显式 skip）与 `GOLDENDB_MYSQL_URL`（MySQL 8 对照端点，形态级跑通用）。
+   设置了端点但连不上 ⇒ 用例红（假端点不静默绿）。
+   GoldenDB 身份断言（连接元数据、保留字行为）按端点类型分叉。
+3. **驱动接入**：GoldenDB 自研驱动（`com.goldendb.jdbc.Driver`，vendor jar 托管主仓
+   `database-lab/vendor/drivers/`）以 pom `goldendb-driver` profiles（system scope）接入：
+   本仓嵌在主仓 `.worktrees` 下时自动按相对路径找到 jar；自由布局传 `-Dgoldendb.jdbc.jar=<绝对路径>`。
+   jar 不在位 ⇒ 构建照常、GoldenDB 端点用例 skip，不假绿。
+
+JUnit 用例自建/自拆 `gdb_case_*` 临时表，不依赖 `db/schema.sql`；`gdb_device` 表（含保留字列）是
+demo 服务面的持久表，随 `db/schema.sql` 维护。
+
 ## 目录结构约定（参考 easy-code-demo）
 
 ```

@@ -192,3 +192,15 @@ CREATE TABLE `t_mixed_profile` (
     `remark`       VARCHAR(255) DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '混合注解实体（静态预览语料）';
+
+-- GoldenDB 方言演示表（T-GoldenDbDemoCases）：反引号标识符 + 保留字列名
+-- storagedb 是 GoldenDB 保留字（开发支持手册 p351-355），order 是 MySQL/GoldenDB 共同保留字，
+-- 两者都必须反引号包裹（引用形态 p320）；storagedb 在 MySQL 非保留，可作形态级对照。
+DROP TABLE IF EXISTS `gdb_device`;
+CREATE TABLE `gdb_device` (
+    `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `device_name` VARCHAR(64)  NOT NULL COMMENT '设备名',
+    `storagedb`   VARCHAR(64)  DEFAULT NULL COMMENT '保留字列名（GoldenDB 保留字，MySQL 非保留）',
+    `order`       INT          DEFAULT NULL COMMENT '保留字列名（双库共同保留字）',
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = 'GoldenDB 方言演示设备表';

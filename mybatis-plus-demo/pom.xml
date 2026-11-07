@@ -98,4 +98,50 @@
             </plugin>
         </plugins>
     </build>
+
+    <!--
+      GoldenDB 自研 JDBC 驱动（T-GoldenDbDemoCases）：MySQL 协议厂商 jar，SPI 类 com.goldendb.jdbc.Driver。
+      jar 是厂商二进制、公开渠道拿不到，托管在主仓 database-lab/vendor/drivers/ 下，不进任何发行包。
+      以 system scope 接入（不入传递依赖），两个 profile 互斥、按需激活：
+        - goldendb-driver-vendored：默认约定路径（本仓嵌在主仓 .worktrees 下的布局）文件存在时自动激活；
+        - goldendb-driver-custom：传 -Dgoldendb.jdbc.jar=<jar 绝对路径> 时激活，布局自由时用这条。
+      jar 不在位时两个 profile 都不激活：构建照常通过，GoldenDB 相关用例按环境变量缺席显式 skip
+      （见 src/test/java/.../goldendb/GoldenDbTestEnv 的 skip 约定），不假绿。
+    -->
+    <profiles>
+        <profile>
+            <id>goldendb-driver-vendored</id>
+            <activation>
+                <file>
+                    <exists>../../../database-lab/vendor/drivers/gdb_mysql-connector-java-oracle-5.1.46.99.jar</exists>
+                </file>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>com.goldendb</groupId>
+                    <artifactId>gdb_mysql-connector-java-oracle</artifactId>
+                    <version>5.1.46.99</version>
+                    <scope>system</scope>
+                    <systemPath>${project.basedir}/../../../database-lab/vendor/drivers/gdb_mysql-connector-java-oracle-5.1.46.99.jar</systemPath>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>goldendb-driver-custom</id>
+            <activation>
+                <property>
+                    <name>goldendb.jdbc.jar</name>
+                </property>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>com.goldendb</groupId>
+                    <artifactId>gdb_mysql-connector-java-oracle</artifactId>
+                    <version>5.1.46.99</version>
+                    <scope>system</scope>
+                    <systemPath>${goldendb.jdbc.jar}</systemPath>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>

@@ -64,7 +64,9 @@ public class ReproRunner implements CommandLineRunner {
             st.executeUpdate("create table DEMO_USER ("
                     + "ID number(10) primary key, "
                     + "NAME varchar2(64), "
-                    + "AGE number(3))");
+                    + "AGE number(3), "
+                    + "CREATE_TIME timestamp, "
+                    + "UPDATE_TIME timestamp)");
         }
     }
 }

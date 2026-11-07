@@ -3,12 +3,21 @@
 用法: python verify_capture.py [sandbox_log_path] [--since "2026-11-07 13:40:00"]
 输出: 刷新拍耗时分布 / 追赶徽章事件 / 插件异常 / 建议结论
 """
-import sys, re, io, collections
+import sys, re, io, os, collections
 from datetime import datetime
 
-DEFAULT_LOG = (r"F:/code/Java/Gitee/SongRenShuo/mybatis-plus-sql-visualizer"
-               r"/.worktrees/sqllist-catchup/.intellijPlatform/sandbox/"
-               r"mybatis-plus-sql-visualizer/IU-2024.3.7.1/log/idea.log")
+def _discover_log():
+    """自动探测沙盒 idea.log：主仓优先，再扫各工作树（按修改时间取最新）。"""
+    import glob
+    roots = [r"F:/code/Java/Gitee/SongRenShuo/mybatis-plus-sql-visualizer"]
+    roots += glob.glob(roots[0] + "/.worktrees/*")
+    cands = []
+    for r in roots:
+        cands += glob.glob(r + "/.intellijPlatform/sandbox/*/IU-*/log/idea.log")
+    cands.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    return cands[0] if cands else ""
+
+DEFAULT_LOG = _discover_log()
 
 TS = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),(\d{3})")
 BEAT = re.compile(r"LogPanel\.refreshList (\d+)ms \(visible=(\d+)\)")

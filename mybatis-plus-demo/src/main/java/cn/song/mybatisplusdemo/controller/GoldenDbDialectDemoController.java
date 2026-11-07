@@ -72,11 +72,11 @@ public class GoldenDbDialectDemoController {
         try {
             return ResponseEntity.ok(goldenDbDialectDemoService.txDemo(rollback));
         } catch (IllegalStateException e) {
-            // 回滚演示的预期异常：回滚后端点返回 200 + 说明，便于走查脚本断言
-            return ResponseEntity.ok(Map.of(
-                    "rolledBack", true,
-                    "message", e.getMessage()
-            ));
+            // 回滚演示的预期异常：回滚后端点返回 200 + 说明，便于走查脚本断言（Java 8 无 Map.of，用 LinkedHashMap）
+            java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("rolledBack", true);
+            body.put("message", e.getMessage());
+            return ResponseEntity.ok(body);
         }
     }
 }

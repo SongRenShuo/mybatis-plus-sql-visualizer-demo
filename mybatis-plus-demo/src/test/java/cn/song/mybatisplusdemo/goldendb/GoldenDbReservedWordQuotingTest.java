@@ -57,8 +57,9 @@ class GoldenDbReservedWordQuotingTest {
             try {
                 assertThrows(SQLException.class,
                         () -> GoldenDbTestEnv.exec(conn,
-                                "SELECT " + TABLE + ".order FROM `" + TABLE + "`"),
-                        "order 是 MySQL/GoldenDB 共同保留字，不加反引号应语法错");
+                                "SELECT order FROM `" + TABLE + "`"),
+                        "order 是 MySQL/GoldenDB 共同保留字，select 列位不加反引号应语法错"
+                                + "（注意 MySQL 允许保留字跟在点号后，tbl.order 不算裸引用，故用裸列名形态）");
             } finally {
                 GoldenDbTestEnv.dropTable(conn, TABLE);
             }

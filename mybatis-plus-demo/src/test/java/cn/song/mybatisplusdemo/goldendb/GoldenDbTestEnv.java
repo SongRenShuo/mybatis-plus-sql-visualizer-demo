@@ -1,6 +1,7 @@
 package cn.song.mybatisplusdemo.goldendb;
 
 import org.junit.jupiter.api.Assumptions;
+import org.opentest4j.TestAbortedException;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -111,10 +112,10 @@ final class GoldenDbTestEnv {
         if (mysqlConfigured()) {
             return mysql();
         }
-        Assumptions.abort("无可用数据库端点：GoldenDB 真机（" + GOLDENDB_URL + "）与 MySQL 对照（"
+        // Spring Boot 2.6.3 托管 JUnit Jupiter 5.8.2，无 Assumptions.abort（5.9+），直接抛 TestAbortedException（同款语义）
+        throw new TestAbortedException("无可用数据库端点：GoldenDB 真机（" + GOLDENDB_URL + "）与 MySQL 对照（"
                 + MYSQL_URL + "）均未设置——本族用例与真机部署解耦，显式跳过；"
                 + "配置任一端点后重跑即可覆盖（GoldenDB 真机或 MySQL 形态级对照）");
-        throw new AssertionError("unreachable");
     }
 
     /** 连接时装载驱动；驱动类不在 classpath 说明 pom 的 goldendb-driver profile 未生效，配置了端点就属误配 ⇒ 红。 */
@@ -135,7 +136,7 @@ final class GoldenDbTestEnv {
     private static Endpoint requireEndpoint(String urlKey, String userKey, String passKey, String skipReason) {
         Endpoint ep = endpointOrNull(urlKey, userKey, passKey);
         if (ep == null) {
-            Assumptions.abort(skipReason);
+            throw new TestAbortedException(skipReason);
         }
         return ep;
     }

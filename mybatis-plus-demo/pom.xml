@@ -158,35 +158,20 @@
                 <profiles.active>panwei</profiles.active>
             </properties>
         </profile>
-    </profiles>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+        <!--
+          GoldenDB 自研 JDBC 驱动（T-GoldenDbDemoCases）：MySQL 协议厂商 jar，SPI 类 com.goldendb.jdbc.Driver。
+          jar 是厂商二进制、公开渠道拿不到，托管在主仓 database-lab/vendor/drivers/ 下，不进任何发行包。
+          以 system scope 接入（不入传递依赖），两个 profile 互斥、按需激活：
+            - goldendb-driver-vendored：默认约定路径（本仓嵌在主仓 .worktrees 下的布局）文件存在时自动激活；
+            - goldendb-driver-custom：传 -Dgoldendb.jdbc.jar=<jar 绝对路径> 时激活，布局自由时用这条。
+          jar 不在位时两个 profile 都不激活：构建照常通过，GoldenDB 相关用例按环境变量缺席显式 skip
+          （见 src/test/java/.../goldendb/GoldenDbTestEnv 的 skip 约定），不假绿。
 
-    <!--
-      GoldenDB 自研 JDBC 驱动（T-GoldenDbDemoCases）：MySQL 协议厂商 jar，SPI 类 com.goldendb.jdbc.Driver。
-      jar 是厂商二进制、公开渠道拿不到，托管在主仓 database-lab/vendor/drivers/ 下，不进任何发行包。
-      以 system scope 接入（不入传递依赖），两个 profile 互斥、按需激活：
-        - goldendb-driver-vendored：默认约定路径（本仓嵌在主仓 .worktrees 下的布局）文件存在时自动激活；
-        - goldendb-driver-custom：传 -Dgoldendb.jdbc.jar=<jar 绝对路径> 时激活，布局自由时用这条。
-      jar 不在位时两个 profile 都不激活：构建照常通过，GoldenDB 相关用例按环境变量缺席显式 skip
-      （见 src/test/java/.../goldendb/GoldenDbTestEnv 的 skip 约定），不假绿。
-    -->
-    <profiles>
+          注（2026-11-09 订正）：这两条原本写成 pom 里的**第二个** `<profiles>` 块，Maven 的 POM XSD
+          只允许一个 `<profiles>`，聚合构建在解析期即报 `Duplicated tag: 'profiles'` 并整个 reactor
+          失败（连带挡住 iBatis 模块的 Maven 侧验证）。现并入上面同一个 `<profiles>`，profile 语义不变。
+        -->
         <profile>
             <id>goldendb-driver-vendored</id>
             <activation>
@@ -222,4 +207,22 @@
             </dependencies>
         </profile>
     </profiles>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>

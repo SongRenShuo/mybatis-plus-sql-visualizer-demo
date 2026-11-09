@@ -26,6 +26,7 @@
 | [jpa-jar-model-lib](jpa-jar-model-lib) | — / —（非 Boot 应用） | 上面的 JAR 态语料 | 普通 JAR：`cn.song.jarlib.entity` 的 `WmsInventoryEntity` + `WmsInventoryQty`/`WmsSku`/`WmsItemKey`（内含静态嵌套 `LotInfo`）+ Spring Data 仓库接口，全部以依赖 JAR 形态加载，宿主无源码 |
 | [shadow-entity-demo](shadow-entity-demo) | 8089 / jpa_demo | 同包同名影子实体复现（jar 内宿主） | JAR 版实体 + 自定义 DAO + HQL 方法体全在依赖 JAR [`shadow-entity-lib`](shadow-entity-lib) 里，宿主源码里**另有**一份同 FQN 影子实体（表 `wms_task_project` vs JAR 版 `wms_task_jar`）；三个调用点（JAR 内 DAO / JAR 内 service / 工程内 service 对照组）复现「实体不可解析，降级为 `task.*`」，README 含 sources jar 附加与无源码反编译视图两种形态的走查步骤与预期读数 |
 | [shadow-entity-lib](shadow-entity-lib) | — / —（非 Boot 应用） | 上面的 JAR 态语料 | 普通 JAR：`com.example.shadow.model.WmsTask`（表 `wms_task_jar`）+ `CommonDao`（双数组 `findByQuery`）+ 带 HQL 字面量的 `WmsTaskJarDao` / `WmsTaskJarService`；配 `maven-source-plugin` 产出 `-sources.jar`（第二形态走查用） |
+| [ibatis2-demo](ibatis2-demo) | — / —（非 Boot 应用） | iBatis 2.x（sqlMap 2.0 DTD） | 原生 iBatis 2.3.4.726 语料（`com.ibatis.*`，非 MyBatis 3）：`sqlmap-config.xml` + `sqlmap/User.xml` 覆盖 `#x#` / `#x:JDBC#` / `#x:JDBC:nullValue#` / `#x,jdbcType=?#` / `$x$` / `##` / `$$`、`<isNotNull>`·`<isNotEmpty>`·`<isEqual>`·`<isGreaterThan>` 条件标签、`<iterate>`+`#ids[]#`、`<selectKey type="pre">`、`parameterMap` 手写 `?` 与「`#` 不转 `?`」分支、`<sql>/<include>`、`<procedure>`、resultMap 与 N+1；`Ibatis2Main` 不连库直接渲染并打印 SQL，作插件 iBatis 静态渲染的人工验收与回归夹具 |
 
 ## 独立 UI 验收夹具
 

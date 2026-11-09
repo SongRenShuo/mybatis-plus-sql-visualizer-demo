@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE sqlMapConfig PUBLIC "-//iBATIS.com//DTD SQL Map Config 2.0//EN"
+  "http://ibatis.apache.org/dtd/sql-map-config-2.dtd">
+<!--
+  iBatis 2.x 的配置入口（注意不是 MyBatis 3 的 mybatis-config.xml）。
+
+  形态要点：
+  - useStatementNamespaces="true"：语句 id 会被加上 sqlMap 的 namespace 前缀（User.selectAll）；
+    该开关默认是 false，本模块显式打开以覆盖「命名空间生效」这一档。
+  - typeAlias：语句里用 User 而不是全限定名。
+  - 只有一个 <sqlMap>；iBatis 2 允许 xmlResultName / cacheModel 等元素，本语料不涉及。
+  - 不需要 transactionManager/dataSource：本模块只做静态渲染自检，不连库。
+-->
+<sqlMapConfig>
+  <settings useStatementNamespaces="true"
+            cacheModelsEnabled="false"
+            lazyLoadingEnabled="false"
+            enhancementEnabled="false"
+            statementCachingEnabled="false"
+            defaultStatementTimeout="30"/>
+
+  <typeAlias alias="User" type="cn.song.ibatis2demo.model.User"/>
+
+  <sqlMap resource="sqlmap/User.xml"/>
+</sqlMapConfig>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>cn.song</groupId>
+  <artifactId>ibatis2-demo</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+  <name>ibatis2-demo</name>
+  <description>iBatis 2.x（sqlMap 2.0 DTD）语料：插件「iBatis 静态渲染」能力的人工验收语料与回归夹具</description>
+
+  <!-- 形态要点：
+       - 无 Spring / 无 MyBatis-Plus，只有 iBatis 2 单 jar（com.ibatis.* 包，注意不是 MyBatis 3 的 org.apache.ibatis.*）；
+       - 配置入口 sqlmap-config.xml（sqlMapConfig 2.0 DTD），语句在 sqlmap/User.xml（sqlMap 2.0 DTD）；
+       - Ibatis2Main 不连库，直接 buildSqlMapClient 解析配置后逐条渲染 SQL——
+         能跑通即机器证明语料语法合法（DTD 校验 + 语句注册 + 占位符/动态标签解析全链路）。
+       - iBatis 2 是 Java 5 时代产物，编译级别固定 1.8。 -->
+  <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.ibatis</groupId>
+      <artifactId>ibatis-sqlmap</artifactId>
+      <version>2.3.4.726</version>
+    </dependency>
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>8.0.33</version>
+    </dependency>
+  </dependencies>
+</project>

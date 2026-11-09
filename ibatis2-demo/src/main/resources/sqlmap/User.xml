@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+<!--
+  iBatis 2.x 语句语料（插件「iBatis 静态渲染」验收/回归夹具）。
+
+  覆盖清单见 README.md。所有语句都由 Ibatis2Main 在离线状态（不连库）渲染，
+  渲染成功即说明本文件的 DTD 结构、占位符语法、动态标签组合都能被 iBatis 2.3.4.726 解析。
+  注意：这份文件是 iBatis 2 语法，不是 MyBatis 3——占位符是 #x# / $x$，条件标签是 <isXxx>。
+-->
+<sqlMap namespace="User">
+
+  <!-- ============================================================
+       1. resultMap：<result property column jdbcType/> 基本形态
+       ============================================================ -->
+  <resultMap id="userResult" class="User">
+    <result property="id"       column="ID"        jdbcType="INTEGER"/>
+    <result property="username" column="USER_NAME" jdbcType="VARCHAR"/>
+    <result property="email"    column="EMAIL"     jdbcType="VARCHAR" nullValue="-"/>
+    <result property="age"      column="AGE"       jdbcType="INTEGER"/>
+    <result property="status"   column="STATUS"    jdbcType="INTEGER"/>
+    <result property="deptId"   column="DEPT_ID"   jdbcType="INTEGER"/>
+  </resultMap>
+
+  <!-- N+1 形态：父 resultMap 用 groupBy + 嵌套 <result ... select=... resultMap=.../>
+       （iBatis 2 的 N+1 不是嵌套 <result> 子元素，而是父 groupBy + 带 select 的 result 映射） -->
+  <resultMap id="deptWithUsers" class="java.util.HashMap" groupBy="deptId">
+    <result property="deptId"   column="DEPT_ID"   jdbcType="INTEGER"/>
+    <result property="deptName" column="DEPT_NAME" jdbcType="VARCHAR"/>
+    <result property="users"    column="DEPT_ID"   select="User.selectByDeptId" resultMap="userResult"/>
+  </resultMap>
+
+  <!-- ============================================================
+       2. parameterMap：<parameter property javaType jdbcType nullValue mode/>
+       有语句真正引用它（引用后 # 不转 ? 的分支，见 viaParameterMapRawHash）
+       ============================================================ -->
+  <parameterMap id="userParamMap" class="User">
+    <parameter property="username" javaType="java.lang.String"  jdbcType="VARCHAR" mode="IN"/>
+    <parameter property="email"    javaType="java.lang.String"  jdbcType="VARCHAR" nullValue="none@example.com"/>
+    <parameter property="age"      javaType="java.lang.Integer" jdbcType="INTEGER" mode="INOUT"/>
+  </parameterMap>
+
+  <!-- ============================================================
+       3. <sql> 片段 + <include>（同 namespace；refid 支持 namespace 回退）
+       ============================================================ -->
+  <sql id="userColumns">ID, USER_NAME, EMAIL, AGE, STATUS</sql>
+
+  <!-- 第二个片段：include 是「配置期按文档顺序内联」的——
+       <sql> 必须声明在引用它的语句之前，否则 buildSqlMapClient 直接报
+       "Could not find SQL statement to include with refid"。 -->
+  <sql id="userActiveCondition">AND AGE &gt;= 18</sql>
+
+  <!-- ============================================================
+       4. 静态 select：无占位符
+       ============================================================ -->
+  <select id="selectAll" resultMap="userResult">
+    SELECT ID, USER_NAME, EMAIL, AGE, STATUS
+    FROM T_USER
+    ORDER BY ID
+  </select>
+
+  <!-- 静态 select：有 #x#（简单占位符） -->
+  <select id="selectById" parameterClass="User" resultMap="userResult">
+    SELECT ID, USER_NAME, EMAIL, AGE, STATUS
+    FROM T_USER
+    WHERE ID = #id#
+  </select>
+
+  <!-- ============================================================
+       5. 两段式 #x:VARCHAR# 与三段式 #x:VARCHAR:0#（含 nullValue）
+       ============================================================ -->
+  <select id="selectTwoSegment" parameterClass="User" resultMap="userResult">
+    SELECT <include refid="userColumns"/>
+    FROM T_USER
+    WHERE USER_NAME = #username:VARCHAR#
+  </select>
+
+  <select id="selectThreeSegment" parameterClass="User" resultMap="userResult">
+    SELECT <include refid="userColumns"/>
+    FROM T_USER
+    WHERE AGE = #age:INTEGER:0#
+  </select>
+
+  <!-- 三段式 VARCHAR + nullValue=0（与上面的 INTEGER:0 对照：三段式判定只看冒号数量） -->
+  <select id="selectVarcharNullValue" parameterClass="User" resultMap="userResult">
+    SELECT <include refid="userColumns"/>
+    FROM T_USER
+    WHERE EMAIL = #email:VARCHAR:0#
+  </select>
+
+  <!-- 独立的 include 语句：<sql> 片段在配置期内联，片段里也可以带 #x# -->
+  <select id="selectByInclude" parameterClass="User" resultMap="userResult">
+    SELECT <include refid="userColumns"/>
+    FROM T_USER
+    WHERE STATUS = #status#
+    <include refid="userActiveCondition"/>
+  </select>
+
+  <!-- ============================================================
+       6. 高级语法 #prop,jdbcType=?...? （无冒号走 newParseMapping）
+       ============================================================ -->
+  <select id="selectAdvancedSyntax" parameterClass="User" resultMap="userResult">
+    SELECT <include refid="userColumns"/>
+    FROM T_USER
+    WHERE ID = #id,jdbcType=INTEGER#
+  </select>
+
+  <!-- ============================================================
+       7. $orderColumn$ 字符串直替（null 时静默丢弃）
+       ============================================================ -->
+  <select id="selectOrderBy" parameterClass="User" resultMap="userResult">
+    SELECT <include refid="userColumns"/>
+    FROM T_USER
+    ORDER BY $orderColumn$
+  </select>
+
+  <!-- ============================================================
+       8. ## / $$ 转义字面量（渲染结果应为 # 与 $）
+       ============================================================ -->
+  <select id="selectEscapes" resultClass="java.util.HashMap">
+    SELECT 'A##B' AS SHARP_LITERAL, 'C$$D' AS DOLLAR_LITERAL
+    FROM T_USER
+    WHERE 1 = 1
+  </select>
+
+  <!-- ============================================================
+       9. <dynamic prepend="WHERE"> + 四种条件标签共存
+          （父 prepend 吃掉第一个子 prepend：真实输出里 WHERE 只出现一次）
+       ============================================================ -->
+  <select id="selectByCondition" parameterClass="User" resultMap="userResult">
+    SELECT <include refid="userColumns"/>
+    FROM T_USER
+    <dynamic prepend="WHERE">
+      <isNotNull   prepend="AND " property="id">ID = #id#</isNotNull>
+      <isNotEmpty  prepend="AND " property="username">USER_NAME LIKE '%$username$%'</isNotEmpty>
+      <isEqual     prepend="AND " property="status" compareValue="1">STATUS = #status#</isEqual>
+      <isGreaterThan prepend="AND " property="age" compareValue="18">AGE &gt; #age#</isGreaterThan>
+    </dynamic>
+    ORDER BY ID
+  </select>
+
+  <!-- ============================================================
+       9b. 语料坑（刻意保留）：iBatis 2 的 prepend 只拼属性原文、不补空格。
+            本语句故意写 prepend="AND"（无尾随空格），真实渲染结果是
+            "ANDUSER_NAME" 这种粘连文本。插件渲染器必须复刻该输出，
+            不能自作主张补空格——补了就和真引擎不一致。
+       ============================================================ -->
+  <select id="selectPrependNoSpace" parameterClass="User" resultMap="userResult">
+    SELECT <include refid="userColumns"/>
+    FROM T_USER
+    <dynamic prepend="WHERE">
+      <isNotNull  prepend="AND" property="id">ID = #id#</isNotNull>
+      <isNotEmpty prepend="AND" property="username">USER_NAME = #username#</isNotEmpty>
+    </dynamic>
+  </select>
+
+  <!-- ============================================================
+       10. <iterate> + #ids[]#（下标占位符）
+       ============================================================ -->
+  <select id="selectByIterate" parameterClass="User" resultMap="userResult">
+    SELECT <include refid="userColumns"/>
+    FROM T_USER
+    <dynamic prepend="WHERE">
+      <iterate prepend="AND " property="ids" open="(" close=")" conjunction="OR">
+        ID = #ids[]#
+      </iterate>
+    </dynamic>
+  </select>
+
+  <!-- ============================================================
+       11. <insert> + <selectKey type="pre">（主键前置生成形态）
+       ============================================================ -->
+  <insert id="insertUser" parameterClass="User">
+    <selectKey resultClass="java.lang.Integer" keyProperty="id" type="pre">
+      SELECT SEQ_USER_ID.NEXTVAL FROM DUAL
+    </selectKey>
+    INSERT INTO T_USER (ID, USER_NAME, EMAIL, AGE)
+    VALUES (#id#, #username#, #email:VARCHAR:unknown#, #age:INTEGER:0#)
+  </insert>
+
+  <!-- ============================================================
+       12. <statement parameterMap="..."> 里手写 ?（JDBC 形态）
+           同时故意保留 #username#：验证「声明了 parameterMap ⇒ # 不转 ?」
+       ============================================================ -->
+  <statement id="viaParameterMapRawHash" parameterMap="userParamMap">
+    SELECT #username# AS RAW_HASH_KEPT, ? AS POSITIONAL
+    FROM T_USER
+    WHERE USER_NAME = ? AND EMAIL = ?
+  </statement>
+
+  <!-- ============================================================
+       13. <procedure> 语法形态（不要求可执行）
+       ============================================================ -->
+  <procedure id="callUserProcedure" parameterMap="userParamMap">
+    { call PKG_USER.SYNC_USER(?, ?, ?) }
+  </procedure>
+
+  <!-- ============================================================
+       14. 无参 / 半填充两态：parameterObject == null 时 <isNull> 为真
+           （iBatis 2 的 isNull/isNotEmpty 对 null 参数有显式短路，别按 MyBatis 3 直觉理解）
+       ============================================================ -->
+  <select id="selectNullParamBranch" parameterClass="User" resultMap="userResult">
+    SELECT <include refid="userColumns"/>
+    FROM T_USER
+    <dynamic prepend="WHERE">
+      <isNull    prepend="AND " property="username">USER_NAME IS NULL</isNull>
+      <isNotNull prepend="AND " property="username">USER_NAME = #username#</isNotNull>
+    </dynamic>
+  </select>
+
+  <!-- N+1 嵌套查询的目标语句（被 deptWithUsers 的 <result select=...> 引用） -->
+  <select id="selectByDeptId" parameterClass="User" resultMap="userResult">
+    SELECT ID, USER_NAME, EMAIL, AGE, STATUS, DEPT_ID
+    FROM T_USER
+    WHERE DEPT_ID = #deptId#
+    ORDER BY ID
+  </select>
+
+</sqlMap>

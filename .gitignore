@@ -7,3 +7,5 @@ target/
 .DS_Store
 logs/
 .xcodemap/
+# 本地凭据与私有台账（与插件仓同构：gitee-token.json / github-token.json / test-databases.md 等）
+.local/

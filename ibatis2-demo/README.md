@@ -123,9 +123,23 @@ java -cp "target/probe;$jar" cn.song.ibatis2demo.Ibatis2Main
     SQL    = { call PKG_USER.SYNC_USER(?, ?, ?) }
 ```
 
+## 真实调用入口（2026-11-10 新增）
+
+| 类 | 用途 |
+|---|---|
+| `UserDao` / `UserDaoImpl` | 20 条语句的 DAO 接口与实现；每条 `client.queryForList("User.xxx")` 的**语句 id 字符串字面量**就是插件「XML 语句行 ↔ Java 调用行」跳转箭头的锚 |
+| `Ibatis2ExecMain` | 真实执行入口：自举建表+种子 → 构建 SqlMapClient → 逐条走 DAO（每步 try/catch，格式语料的失败单独打印） |
+| `log4j2.xml` + `log4j-jcl`/`log4j-core` 依赖 | iBatis 的 `LogFactory` 探测序是 commons-logging → log4j 1.x → JDK14 → nop；给 commons-logging 实现 + log4j2 后端后，`java.sql` 的 DEBUG 才打到控制台，插件的 SQL 捕获（控制台桥/增强捕获）从这里采样 |
+
+**怎么用**：IDE 里直接 Run `Ibatis2ExecMain`（增强捕获测试必须从 IDE 启动，外部进程挂不上 agent）。默认 3 轮、每条间隔 1.5s，可用 `-Dibatis2demo.rounds=N` 调整。
+
+**预期读数**：
+- 可执行语句（各 SELECT、`insertUser` 的 INSERT 主体、`updateUser`、`deleteUser`、`selectPrependWithSpace`）正常往返，控制台出现 `{conn-N}` / `{pstm-N}` 三行组；
+- 三条**形态语料**逐条 `[EXPECT-FAIL]`：`insertUser` 的 selectKey（`SEQ_USER_ID.NEXTVAL FROM DUAL` 是 Oracle 序列，MySQL 上执行失败）、`viaParameterMapRawHash`（体内保留的 `#username#` 在 MySQL 里是行注释，SQL 截断报错）、`callUserProcedure`（`{call PKG_USER...}` 需要先建包）。
+
 ## 语料里刻意保留的坑（改语料时勿"修好"）
 
-1. **`prepend` 不补空格**：`selectPrependNoSpace` 的真实输出是 `ANDUSER_NAME`。iBatis 2 只把 `prepend` 属性原文拼上去，插件渲染器必须复刻该输出；补空格就等于与真引擎不一致。
+1. **`prepend` 不补空格**：`selectPrependNoSpace` 的真实输出是 `ANDUSER_NAME`。iBatis 2 只把 `prepend` 属性原文拼上去，插件渲染器必须复刻该输出；补空格就等于与真引擎不一致。**这条执行必然语法错**——需要可执行对照时用 `selectPrependWithSpace`（prepend 写 `"AND "`，带尾随空格）。
 2. **声明 `parameterMap` 的语句 `#` 不转 `?`**：`viaParameterMapRawHash` 里 `#username#` 原样留在 SQL 中，真正生效的是手写 `?`。渲染器必须按「有 parameterMap ⇒ `#` 保留」处理。
 3. **`nullValue` 是绑定期哨兵，不在渲染值里体现**：`#age:INTEGER:0#` 的映射带 `nullValue=0`，但 `getParameterObjectValues` 对 null 仍返回 `null`；替换发生在 JDBC 绑定 null 时。
 4. **`<sql>` 必须声明在引用它的语句之前**：`include` 是配置期按文档顺序内联，片段放后面会让 `buildSqlMapClient` 直接抛 "Could not find SQL statement to include with refid"。语料当前把两个片段放在最前，勿下移。

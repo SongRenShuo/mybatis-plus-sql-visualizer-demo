@@ -9,7 +9,7 @@
     该开关默认是 false，本模块显式打开以覆盖「命名空间生效」这一档。
   - typeAlias：语句里用 User 而不是全限定名。
   - 只有一个 <sqlMap>；iBatis 2 允许 xmlResultName / cacheModel 等元素，本语料不涉及。
-  - 不需要 transactionManager/dataSource：本模块只做静态渲染自检，不连库。
+  - transactionManager/dataSource 只服务 Ibatis2ExecMain 的真实执行；Ibatis2Main 的离线渲染不碰这条链。
 -->
 <sqlMapConfig>
   <settings useStatementNamespaces="true"
@@ -20,6 +20,17 @@
             defaultStatementTimeout="30"/>
 
   <typeAlias alias="User" type="cn.song.ibatis2demo.model.User"/>
+
+  <!-- 真实执行用：JDBC + SIMPLE 事务，指向本地 MySQL mp_demo（与其他 demo 模块同一约定 root/root） -->
+  <transactionManager type="JDBC">
+    <dataSource type="SIMPLE">
+      <property name="JDBC.Driver" value="com.mysql.cj.jdbc.Driver"/>
+      <property name="JDBC.ConnectionURL"
+                value="jdbc:mysql://localhost:3306/mp_demo?useUnicode=true&amp;characterEncoding=utf8&amp;useSSL=false&amp;serverTimezone=Asia/Shanghai&amp;allowPublicKeyRetrieval=true"/>
+      <property name="JDBC.Username" value="root"/>
+      <property name="JDBC.Password" value="root"/>
+    </dataSource>
+  </transactionManager>
 
   <sqlMap resource="sqlmap/User.xml"/>
 </sqlMapConfig>

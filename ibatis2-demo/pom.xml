@@ -33,5 +33,21 @@
       <artifactId>mysql-connector-java</artifactId>
       <version>8.0.33</version>
     </dependency>
+    <!--
+      JDBC 日志代理的必要条件：iBatis LogFactory 的探测顺序是
+      commons-logging → log4j 1.x → JDK14 → nop（见 com/ibatis/common/logging/LogFactory.java）。
+      给 log4j-jcl 桥 + log4j-core 后，`java.sql` 的 DEBUG 才会经 log4j2.xml 打到控制台——
+      插件的 SQL 捕获（控制台桥 / 增强捕获）就从那些 `{conn-N}` / `{pstm-N}` 行进采样。
+    -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-jcl</artifactId>
+      <version>2.23.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>2.23.1</version>
+    </dependency>
   </dependencies>
 </project>

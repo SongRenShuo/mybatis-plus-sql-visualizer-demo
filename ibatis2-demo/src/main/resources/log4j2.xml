@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  iBatis 2 的 JDBC 日志代理（{conn-N} / {pstm-N} 三行一组）在 DEBUG 级别打印——
+  插件的 SQL 捕获（控制台桥 + 增强捕获）就从 IDE 运行控制台里的这些行采样。
+  探测顺序：iBatis LogFactory 先找 commons-logging（log4j-jcl 桥路由到 log4j2）→ log4j 1.x → JDK14。
+-->
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{1.} : %msg%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <logger name="java.sql" level="debug"/>
+        <logger name="com.ibatis" level="debug"/>
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

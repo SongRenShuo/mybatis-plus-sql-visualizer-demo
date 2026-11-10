@@ -215,4 +215,30 @@
     ORDER BY ID
   </select>
 
+  <!-- ============================================================
+       15. 与 9b（selectPrependNoSpace）的**可执行对照**：prepend 写 "AND "（带尾随空格）。
+           真实项目必须这么写——9b 渲染出的 ANDUSER_NAME 粘连执行必然语法错，它是保真样本。
+       ============================================================ -->
+  <select id="selectPrependWithSpace" parameterClass="User" resultMap="userResult">
+    SELECT <include refid="userColumns"/>
+    FROM T_USER
+    <dynamic prepend="WHERE">
+      <isNotNull  prepend="AND " property="id">ID = #id#</isNotNull>
+      <isNotEmpty prepend="AND " property="username">USER_NAME = #username#</isNotEmpty>
+    </dynamic>
+  </select>
+
+  <!-- ============================================================
+       16. UPDATE / DELETE：CRUD 完整面（真实执行可跑）
+       ============================================================ -->
+  <update id="updateUser" parameterClass="User">
+    UPDATE T_USER
+    SET USER_NAME = #username#, EMAIL = #email#, AGE = #age#, STATUS = #status#
+    WHERE ID = #id#
+  </update>
+
+  <delete id="deleteUser" parameterClass="java.lang.Integer">
+    DELETE FROM T_USER WHERE ID = #value#
+  </delete>
+
 </sqlMap>

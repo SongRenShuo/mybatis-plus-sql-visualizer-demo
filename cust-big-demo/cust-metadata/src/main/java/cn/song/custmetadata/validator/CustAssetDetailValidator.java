@@ -1,0 +1,495 @@
+package cn.song.custmetadata.validator;
+
+import java.util.List;
+
+/**
+ * 客户资产明细Validator 字段校验器。
+ *
+ * <p>错误信息追加到调用方传入的 errors，便于一次返回全部问题。
+ */
+public final class CustAssetDetailValidator {
+
+    private CustAssetDetailValidator() {
+    }
+
+    /** 校验合同编号。 */
+    public static void validateContractNo(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractNo 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractNo 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractNo 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同名称。 */
+    public static void validateContractName(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractName 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractName 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractName 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同类型。 */
+    public static void validateContractType(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractType 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractType 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractType 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同编码。 */
+    public static void validateContractCode(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractCode 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractCode 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractCode 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同级别。 */
+    public static void validateContractLevel(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractLevel 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractLevel 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractLevel 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同状态。 */
+    public static void validateContractStatus(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractStatus 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractStatus 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractStatus 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同金额。 */
+    public static void validateContractAmount(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractAmount 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractAmount 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractAmount 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同数量。 */
+    public static void validateContractCount(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractCount 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractCount 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractCount 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同比率。 */
+    public static void validateContractRate(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractRate 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractRate 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractRate 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同日期。 */
+    public static void validateContractDate(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractDate 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractDate 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractDate 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同时间。 */
+    public static void validateContractTime(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractTime 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractTime 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractTime 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同标记。 */
+    public static void validateContractFlag(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractFlag 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractFlag 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractFlag 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同说明。 */
+    public static void validateContractRemark(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractRemark 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractRemark 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractRemark 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同来源。 */
+    public static void validateContractSource(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractSource 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractSource 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractSource 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同版本。 */
+    public static void validateContractVersion(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractVersion 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractVersion 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractVersion 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同区域。 */
+    public static void validateContractRegion(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractRegion 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractRegion 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractRegion 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同渠道。 */
+    public static void validateContractChannel(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractChannel 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractChannel 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractChannel 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同分组。 */
+    public static void validateContractGroup(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractGroup 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractGroup 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractGroup 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同标签。 */
+    public static void validateContractTag(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractTag 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractTag 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractTag 长度不能超过 128");
+        }
+    }
+
+    /** 校验合同负责人。 */
+    public static void validateContractOwner(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("contractOwner 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("contractOwner 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("contractOwner 长度不能超过 128");
+        }
+    }
+
+    /** 校验订单编号。 */
+    public static void validateOrderNo(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("orderNo 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("orderNo 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("orderNo 长度不能超过 128");
+        }
+    }
+
+    /** 校验订单名称。 */
+    public static void validateOrderName(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("orderName 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("orderName 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("orderName 长度不能超过 128");
+        }
+    }
+
+    /** 校验订单类型。 */
+    public static void validateOrderType(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("orderType 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("orderType 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("orderType 长度不能超过 128");
+        }
+    }
+
+    /** 校验订单编码。 */
+    public static void validateOrderCode(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("orderCode 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("orderCode 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("orderCode 长度不能超过 128");
+        }
+    }
+
+    /** 校验订单级别。 */
+    public static void validateOrderLevel(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("orderLevel 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("orderLevel 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("orderLevel 长度不能超过 128");
+        }
+    }
+
+    /** 校验订单状态。 */
+    public static void validateOrderStatus(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("orderStatus 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("orderStatus 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("orderStatus 长度不能超过 128");
+        }
+    }
+
+    /** 校验订单金额。 */
+    public static void validateOrderAmount(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("orderAmount 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("orderAmount 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("orderAmount 长度不能超过 128");
+        }
+    }
+
+    /** 校验订单数量。 */
+    public static void validateOrderCount(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("orderCount 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("orderCount 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("orderCount 长度不能超过 128");
+        }
+    }
+
+    /** 校验订单比率。 */
+    public static void validateOrderRate(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("orderRate 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("orderRate 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("orderRate 长度不能超过 128");
+        }
+    }
+
+    /** 校验订单日期。 */
+    public static void validateOrderDate(Object value, List<String> errors) {
+        if (value == null) {
+            errors.add("orderDate 不能为空");
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.length() == 0) {
+            errors.add("orderDate 不能为空白");
+            return;
+        }
+        if (text.length() > 128) {
+            errors.add("orderDate 长度不能超过 128");
+        }
+    }
+
+}

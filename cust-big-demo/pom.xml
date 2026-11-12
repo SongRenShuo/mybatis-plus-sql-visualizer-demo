@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>cn.song</groupId>
+  <artifactId>cust-big-demo</artifactId>
+  <version>1.0.0</version>
+  <packaging>pom</packaging>
+  <name>cust-big-demo</name>
+  <description>
+    微服务多模块大工程语料，用于复现 SQL Visualizer 在真实客户主数据项目中的性能问题。
+    cust-metadata 为原生 MyBatis（MBG 生成风格）主战场，cust-center 为 MyBatis-Plus 服务，
+    cust-common 为共享库，cust-gateway 为网关。本工程独立聚合，不改 demo 根 pom。
+  </description>
+
+  <modules>
+    <module>cust-common</module>
+    <module>cust-center</module>
+    <module>cust-metadata</module>
+    <module>cust-gateway</module>
+  </modules>
+
+  <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+</project>

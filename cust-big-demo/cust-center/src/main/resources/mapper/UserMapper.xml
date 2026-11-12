@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.song.custcenter.mapper.UserMapper">
+  <select id="selectActiveUsers" resultType="cn.song.custcenter.entity.User">
+    select id, tenant_id, user_name, nick_name, mobile_no, email_addr, status, create_time
+    from sys_user
+    where del_flag = '0'
+      and status = '1'
+    order by create_time desc
+  </select>
+</mapper>

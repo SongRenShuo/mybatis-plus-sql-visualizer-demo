@@ -1,0 +1,19 @@
+server:
+  port: 18081
+
+spring:
+  application:
+    name: cust-center
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/cust_center?useUnicode=true&characterEncoding=utf8
+    username: center_reader
+    password: center_reader
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/*.xml
+  global-config:
+    db-config:
+      logic-delete-field: delFlag
+      logic-delete-value: 1
+      logic-not-delete-value: 0

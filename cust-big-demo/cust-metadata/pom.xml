@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>cn.song</groupId>
+    <artifactId>cust-big-demo</artifactId>
+    <version>1.0.0</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>cust-metadata</artifactId>
+  <packaging>jar</packaging>
+  <name>cust-metadata</name>
+  <description>
+    原生 MyBatis 服务（MBG 生成风格）：40 套三件套 + selectByExample 调用点压力，
+    是 SQL Visualizer 性能复现的主战场。
+  </description>
+
+  <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>cn.song</groupId>
+      <artifactId>cust-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!--
+    <dependency>
+      <groupId>org.mybatis</groupId>
+      <artifactId>mybatis</artifactId>
+      <version>3.5.19</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mybatis.generator</groupId>
+      <artifactId>mybatis-generator-core</artifactId>
+      <version>1.4.2</version>
+    </dependency>
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>8.0.33</version>
+    </dependency>
+    -->
+    <!--
+      外部依赖坐标故意注释：本工程只用于造语料，不参与构建，也不要求能编译通过。
+      取消注释即可还原真实工程依赖（离线环境请先自备本地仓库）。
+    -->
+  </dependencies>
+</project>

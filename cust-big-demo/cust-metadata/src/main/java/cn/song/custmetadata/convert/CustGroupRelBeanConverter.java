@@ -1,0 +1,405 @@
+package cn.song.custmetadata.convert;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Date;
+
+/**
+ * 客户群组关系BeanConverter 字段适配器。
+ *
+ * <p>把上游系统的宽松入参收敛成统一形态，空值与非法值一律回落到默认值。
+ */
+public final class CustGroupRelBeanConverter {
+
+    private CustGroupRelBeanConverter() {
+    }
+
+    /** 归一化拜访状态。 */
+    public static String adaptVisitStatus(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化拜访金额（保留两位小数）。 */
+    public static BigDecimal adaptVisitAmount(BigDecimal value, BigDecimal defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value.signum() < 0) {
+            return defaultValue;
+        }
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** 归一化拜访数量。 */
+    public static Integer adaptVisitCount(Integer value, Integer defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value.intValue() < 0) {
+            return defaultValue;
+        }
+        return value;
+    }
+
+    /** 归一化拜访比率（保留两位小数）。 */
+    public static BigDecimal adaptVisitRate(BigDecimal value, BigDecimal defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value.signum() < 0) {
+            return defaultValue;
+        }
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** 复制拜访日期（防御 Date 可变性）。 */
+    public static Date adaptVisitDate(Date value, Date defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        return new Date(value.getTime());
+    }
+
+    /** 复制拜访时间（防御 Date 可变性）。 */
+    public static Date adaptVisitTime(Date value, Date defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        return new Date(value.getTime());
+    }
+
+    /** 归一化拜访标记。 */
+    public static Boolean adaptVisitFlag(Boolean value, Boolean defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        return value;
+    }
+
+    /** 归一化拜访说明。 */
+    public static String adaptVisitRemark(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化拜访来源。 */
+    public static String adaptVisitSource(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化拜访版本。 */
+    public static Integer adaptVisitVersion(Integer value, Integer defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value.intValue() < 0) {
+            return defaultValue;
+        }
+        return value;
+    }
+
+    /** 归一化拜访区域。 */
+    public static String adaptVisitRegion(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化拜访渠道。 */
+    public static String adaptVisitChannel(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化拜访分组。 */
+    public static String adaptVisitGroup(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化拜访标签。 */
+    public static String adaptVisitTag(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化拜访负责人。 */
+    public static String adaptVisitOwner(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同编号。 */
+    public static String adaptContractNo(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同名称。 */
+    public static String adaptContractName(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同类型。 */
+    public static String adaptContractType(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同编码。 */
+    public static String adaptContractCode(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同级别。 */
+    public static String adaptContractLevel(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同状态。 */
+    public static String adaptContractStatus(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同金额（保留两位小数）。 */
+    public static BigDecimal adaptContractAmount(BigDecimal value, BigDecimal defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value.signum() < 0) {
+            return defaultValue;
+        }
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** 归一化合同数量。 */
+    public static Integer adaptContractCount(Integer value, Integer defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value.intValue() < 0) {
+            return defaultValue;
+        }
+        return value;
+    }
+
+    /** 归一化合同比率（保留两位小数）。 */
+    public static BigDecimal adaptContractRate(BigDecimal value, BigDecimal defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value.signum() < 0) {
+            return defaultValue;
+        }
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** 复制合同日期（防御 Date 可变性）。 */
+    public static Date adaptContractDate(Date value, Date defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        return new Date(value.getTime());
+    }
+
+    /** 复制合同时间（防御 Date 可变性）。 */
+    public static Date adaptContractTime(Date value, Date defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        return new Date(value.getTime());
+    }
+
+    /** 归一化合同标记。 */
+    public static Boolean adaptContractFlag(Boolean value, Boolean defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        return value;
+    }
+
+    /** 归一化合同说明。 */
+    public static String adaptContractRemark(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同来源。 */
+    public static String adaptContractSource(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同版本。 */
+    public static Integer adaptContractVersion(Integer value, Integer defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value.intValue() < 0) {
+            return defaultValue;
+        }
+        return value;
+    }
+
+    /** 归一化合同区域。 */
+    public static String adaptContractRegion(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同渠道。 */
+    public static String adaptContractChannel(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同分组。 */
+    public static String adaptContractGroup(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同标签。 */
+    public static String adaptContractTag(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+    /** 归一化合同负责人。 */
+    public static String adaptContractOwner(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.trim();
+        if (text.length() == 0) {
+            return defaultValue;
+        }
+        return text;
+    }
+
+}

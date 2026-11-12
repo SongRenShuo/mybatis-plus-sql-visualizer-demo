@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.song.custcenter.mapper.CustInfoMapper">
+  <select id="selectTopCustomers" resultType="cn.song.custcenter.entity.CustInfo">
+    select id, tenant_id, cust_no, cust_name, cust_type, cert_no, mobile_no, manager_id, status, create_time
+    from cust_info
+    where del_flag = '0'
+      and tenant_id = #{tenantId}
+    order by create_time desc
+    limit #{limit}
+  </select>
+</mapper>

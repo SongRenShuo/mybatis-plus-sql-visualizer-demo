@@ -1,0 +1,18 @@
+server:
+  port: 18080
+
+spring:
+  application:
+    name: cust-gateway
+
+gateway:
+  routes:
+    - id: cust-center
+      uri: http://127.0.0.1:18081
+      predicates:
+        - Path=/api/center/**
+    - id: cust-metadata
+      uri: http://127.0.0.1:18082
+      predicates:
+        - Path=/api/metadata/**
+  default-timeout: 3000

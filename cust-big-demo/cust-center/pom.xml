@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>cn.song</groupId>
+    <artifactId>cust-big-demo</artifactId>
+    <version>1.0.0</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>cust-center</artifactId>
+  <packaging>jar</packaging>
+  <name>cust-center</name>
+  <description>
+    MyBatis-Plus 服务：@TableName 实体、BaseMapper、Wrapper/Page 调用压力。
+  </description>
+
+  <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>cn.song</groupId>
+      <artifactId>cust-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!--
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-boot-starter</artifactId>
+      <version>3.5.7</version>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <version>8.4.0</version>
+    </dependency>
+    -->
+    <!--
+      外部依赖坐标故意注释：本工程只用于造语料，不参与构建，也不要求能编译通过。
+      取消注释即可还原真实工程依赖（离线环境请先自备本地仓库）。
+    -->
+  </dependencies>
+</project>

@@ -1,0 +1,17 @@
+server:
+  port: 18082
+
+spring:
+  application:
+    name: cust-metadata
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/cust_metadata?useUnicode=true&characterEncoding=utf8
+    username: cust_reader
+    password: cust_reader
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis:
+  mapper-locations: classpath*:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    default-statement-timeout: 30

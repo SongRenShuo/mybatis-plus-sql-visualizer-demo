@@ -27,8 +27,9 @@
   <dependencies>
 
     <!--
-      外部依赖坐标故意注释：本工程只用于造语料，不参与构建，也不要求能编译通过。
-      取消注释即可还原真实工程依赖（离线环境请先自备本地仓库）。
+      本模块只用 JDK 自带的 java.* API，没有外部编译期依赖；
+      整个 cust-big-demo 要求 mvn -o -DskipTests compile 通过（IDE 解析复现的前提），
+      新增外部依赖时请挑本地仓库已有的版本。
     -->
   </dependencies>
 </project>

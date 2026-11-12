@@ -32,11 +32,18 @@
       <version>${project.version}</version>
     </dependency>
     <!--
+      编译期真实依赖：MBG 生成风格的 Mapper 接口全部使用 org.apache.ibatis.annotations.Param。
+      本工程必须能真实编译通过（IDE 内多模块解析/复现的前提），所以这里不再注释。
+      版本取本机本地仓库已有版本，保证 mvn -o（离线）可解析。
+    -->
     <dependency>
       <groupId>org.mybatis</groupId>
       <artifactId>mybatis</artifactId>
       <version>3.5.19</version>
     </dependency>
+    <!--
+      以下两项只在真实工程的运行期/代码生成期需要，本语料的编译用不到，
+      保持注释，避免引入无谓的离线解析依赖：
     <dependency>
       <groupId>org.mybatis.generator</groupId>
       <artifactId>mybatis-generator-core</artifactId>
@@ -47,10 +54,6 @@
       <artifactId>mysql-connector-java</artifactId>
       <version>8.0.33</version>
     </dependency>
-    -->
-    <!--
-      外部依赖坐标故意注释：本工程只用于造语料，不参与构建，也不要求能编译通过。
-      取消注释即可还原真实工程依赖（离线环境请先自备本地仓库）。
     -->
   </dependencies>
 </project>

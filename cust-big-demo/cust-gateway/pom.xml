@@ -31,15 +31,14 @@
       <version>${project.version}</version>
     </dependency>
     <!--
+      本模块只用 JDK 自带的 java.* API，没有外部编译期依赖。
+      spring-boot-starter-web 只对应真实工程的运行期网关实现，本语料编译用不到，
+      保持注释以免拖入 spring-boot 依赖链（离线解析会炸）：
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
       <version>3.2.5</version>
     </dependency>
-    -->
-    <!--
-      外部依赖坐标故意注释：本工程只用于造语料，不参与构建，也不要求能编译通过。
-      取消注释即可还原真实工程依赖（离线环境请先自备本地仓库）。
     -->
   </dependencies>
 </project>

@@ -15,8 +15,9 @@
   <packaging>jar</packaging>
   <name>cust-metadata</name>
   <description>
-    原生 MyBatis 服务（MBG 生成风格）：40 套三件套 + selectByExample 调用点压力，
-    是 SQL Visualizer 性能复现的主战场。
+    原生 MyBatis 服务（MBG 生成风格）：既有 40 套 + 生成器新增 1200 套三件套
+    （Entity / Example / Mapper + mapper XML），selectByExample 调用点压力，
+    是 SQL Visualizer 性能复现的主战场。生成方式见 ../tools/gen_big_demo.py。
   </description>
 
   <properties>

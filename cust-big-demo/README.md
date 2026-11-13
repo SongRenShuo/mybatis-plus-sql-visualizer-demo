@@ -90,3 +90,33 @@ JAVA_HOME=D:/HuanJing/Java/jdk1.8.0_181 \
 - 最大单文件行数：`find . -name '*.java' | xargs wc -l | sort -n | tail -1`
 - 同名类组数：同名类分布在 `cust-gateway` 与业务模块的 `com.demo.cust.<模块>.contract`
   （见 `tools/gen_big_demo.py` 的 `GATEWAY_GROUPS`）
+
+## 实测规模（seed=20261113，2026-11-13）
+
+生成器全量重放后 `git status` 只显示 `tools/generated-summary.json` 变化，
+其余文件零 diff，可重放性成立。
+
+| 模块 | 表数 | Java 文件 | mapper XML | sqlMap XML |
+| --- | --- | --- | --- | --- |
+| cust-metadata | 1200 | 10864（生成 9600 + 既有 1264） | 1240（生成 1200） | 0 |
+| cust-center | 800 | 4082（生成 4000 + 既有 82） | 802（生成 800） | 0 |
+| cust-order | 300 | 1203（生成 1201） | 0 | 301（300 表 + 1 config） |
+| cust-report | 200 | 602（生成 600） | 0 | 0 |
+| cust-gateway | 0 | 35（生成 13 + 既有 22） | 0 | 0 |
+| cust-common | 0 | 18（既有） | 0 | 0 |
+| **合计** | **2500** | **16804** | **2042**（生成 2000） | **301** |
+
+- 目录内源文件 19161 个 / 88.2MB（不含 `target/`、`.idea/`），其中 Java 72.6MB、XML 15.5MB
+- `selectByExample(` 全仓 7720 处（生成语料 6000 = 4800 调用点 + 1200 接口声明；
+  既有 `cn.song.*` 1720）；`selectByPrimaryKey(` 2440 处
+- `LambdaQueryWrapper` 8000 次（其中 3200 处实例化），`new QueryWrapper` 3200 处
+- 最大单文件 1407 行（既有 `CustAddressExample`）；生成物最大 1081 行，最大 XML 290 行
+- 跨模块同名类 19 组：12 组为刻意造的同名类，另 7 组是既有 `cn.song.*` 语料本身的
+  重名（CustInfo / CustInfoController / CustInfoMapper / CustTag / CustTagController /
+  CustTagMapper / User）
+- 编译：`mvn -o -DskipTests compile` BUILD SUCCESS，7 个 reactor 模块全绿，
+  总耗时 1:32（cust-metadata 1:18）。首次尝试因本机同时跑 gradle、空闲物理内存只剩
+  4GB，JVM 在 C2 编译线程上原生内存 OOM；改用
+  `-Xms512m -Xmx1536m -XX:+UseSerialGC -XX:CICompilerCount=2` 后通过，
+  代码零改动。
+

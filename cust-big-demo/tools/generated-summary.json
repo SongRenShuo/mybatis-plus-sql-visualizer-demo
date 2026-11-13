@@ -1,8 +1,28 @@
 {
   "modules": {
+    "center": {
+      "java": 4000,
+      "tables": 800,
+      "xml": 800
+    },
     "gateway": {
       "java": 25,
       "tables": 0,
+      "xml": 0
+    },
+    "metadata": {
+      "java": 9600,
+      "tables": 1200,
+      "xml": 1200
+    },
+    "order": {
+      "java": 1201,
+      "tables": 300,
+      "xml": 301
+    },
+    "report": {
+      "java": 600,
+      "tables": 200,
       "xml": 0
     }
   },
@@ -15,8 +35,8 @@
   },
   "totals": {
     "gatewayDuplicateNameGroups": 12,
-    "javaFiles": 25,
-    "tables": 0,
-    "xmlFiles": 0
+    "javaFiles": 15426,
+    "tables": 2500,
+    "xmlFiles": 2301
   }
 }

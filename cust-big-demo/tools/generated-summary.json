@@ -1,8 +1,8 @@
 {
   "modules": {
-    "report": {
-      "java": 600,
-      "tables": 200,
+    "gateway": {
+      "java": 25,
+      "tables": 0,
       "xml": 0
     }
   },
@@ -14,9 +14,9 @@
     "report": 200
   },
   "totals": {
-    "gatewayDuplicateNameGroups": 0,
-    "javaFiles": 600,
-    "tables": 200,
+    "gatewayDuplicateNameGroups": 12,
+    "javaFiles": 25,
+    "tables": 0,
     "xmlFiles": 0
   }
 }

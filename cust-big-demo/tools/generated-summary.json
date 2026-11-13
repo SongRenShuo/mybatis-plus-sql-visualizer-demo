@@ -1,9 +1,9 @@
 {
   "modules": {
-    "metadata": {
-      "java": 9600,
-      "tables": 1200,
-      "xml": 1200
+    "center": {
+      "java": 4000,
+      "tables": 800,
+      "xml": 800
     }
   },
   "seed": "20261113",
@@ -15,8 +15,8 @@
   },
   "totals": {
     "gatewayDuplicateNameGroups": 0,
-    "javaFiles": 9600,
-    "tables": 1200,
-    "xmlFiles": 1200
+    "javaFiles": 4000,
+    "tables": 800,
+    "xmlFiles": 800
   }
 }

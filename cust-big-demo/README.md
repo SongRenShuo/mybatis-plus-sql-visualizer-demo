@@ -120,3 +120,15 @@ JAVA_HOME=D:/HuanJing/Java/jdk1.8.0_181 \
   `-Xms512m -Xmx1536m -XX:+UseSerialGC -XX:CICompilerCount=2` 后通过，
   代码零改动。
 
+## 已知限制（未验证项）
+
+- **未在 runIde 沙盒里打开本工程验证**插件预览/索引表现，也**未做性能压测**。
+  本任务只交付语料与离线编译证据；「预览是否会被打到卡死」需要在插件仓用
+  runIde 打开本目录单独验证。
+- 7 组跨模块同名类是**原有 `cn.song.*` 40 套语料自带**的（CustInfo /
+  CustInfoController / CustInfoMapper / CustTag / CustTagController / CustTagMapper /
+  User），生成器没有改动它们；本次新增语料只在 12 组 gateway 同名类上刻意重名。
+- 语料是模板化生成，SQL 语义不针对某个真实库调优，也没有数据库连接；用途是
+  静态解析、索引与引用搜索压力，不是可直接跑通的业务系统。
+- `cust-order` 的 sqlMap 仅验证编译期依赖与 XML 形态，未在运行期真正连库执行。
+

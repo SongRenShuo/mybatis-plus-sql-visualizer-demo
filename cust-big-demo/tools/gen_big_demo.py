@@ -914,12 +914,6 @@ def gen_metadata_xml(t, seed):
     return "\n".join(lines) + "\n"
 
 
-def generate_metadata(root, seed):
-    tables = build_tables("metadata", DEFAULT_TABLES["metadata"], seed)
-    # 支持外部覆盖表数（由 main 传入）
-    return tables
-
-
 def emit_metadata(root, tables, seed, stats):
     java_dir = module_java_dir(root, "metadata", "com.demo.cust.metadata")
     res_dir = module_res_dir(root, "metadata", "mapper")

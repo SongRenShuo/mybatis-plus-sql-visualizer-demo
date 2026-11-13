@@ -1,9 +1,9 @@
 {
   "modules": {
-    "order": {
-      "java": 1201,
-      "tables": 300,
-      "xml": 301
+    "report": {
+      "java": 600,
+      "tables": 200,
+      "xml": 0
     }
   },
   "seed": "20261113",
@@ -15,8 +15,8 @@
   },
   "totals": {
     "gatewayDuplicateNameGroups": 0,
-    "javaFiles": 1201,
-    "tables": 300,
-    "xmlFiles": 301
+    "javaFiles": 600,
+    "tables": 200,
+    "xmlFiles": 0
   }
 }

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>cn.song</groupId>
+    <artifactId>cust-big-demo</artifactId>
+    <version>1.0.0</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>cust-report</artifactId>
+  <packaging>jar</packaging>
+  <name>cust-report</name>
+  <description>
+    报表服务：JPA 注解实体（javax.persistence 2.2）+ JdbcTemplate 字符串 SQL。
+    与其他模块的 MyBatis / MyBatis-Plus / iBatis 2 形成四种 ORM 并存的解析面。
+  </description>
+
+  <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>cn.song</groupId>
+      <artifactId>cust-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!--
+      JPA 注解实体：取本机 ~/.m2 已有的 2.2 版（与仓库既有 jpa-hibernate-demo 同代），
+      4 模块都是 JDK8，不用 jakarta.persistence 3.x（那套要求 Java 11+ 语义）。
+    -->
+    <dependency>
+      <groupId>javax.persistence</groupId>
+      <artifactId>javax.persistence-api</artifactId>
+      <version>2.2</version>
+    </dependency>
+    <!--
+      JdbcTemplate 字符串 SQL：5.3.31 为本机已有版本，传递 core/beans/tx/jcl 均有。
+      不用 spring-boot-starter-jdbc，避免拖入 boot 依赖链（离线解析会炸）。
+    -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jdbc</artifactId>
+      <version>5.3.31</version>
+    </dependency>
+    <!--
+      真实工程的连接池/驱动只在运行期需要，编译期用不到，保持注释：
+    <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+      <version>5.1.0</version>
+    </dependency>
+    -->
+  </dependencies>
+</project>

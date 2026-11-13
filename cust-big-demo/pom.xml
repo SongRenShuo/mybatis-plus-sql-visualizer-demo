@@ -12,7 +12,9 @@
   <description>
     微服务多模块大工程语料，用于复现 SQL Visualizer 在真实客户主数据项目中的性能问题。
     cust-metadata 为原生 MyBatis（MBG 生成风格）主战场，cust-center 为 MyBatis-Plus 服务，
+    cust-order 为 iBatis 2.x 遗留子系统，cust-report 为 JPA + JdbcTemplate 报表服务，
     cust-common 为共享库，cust-gateway 为网关。本工程独立聚合，不改 demo 根 pom。
+    生成器与规模说明见 README.md / tools/gen_big_demo.py。
   </description>
 
   <modules>
@@ -20,6 +22,7 @@
     <module>cust-center</module>
     <module>cust-metadata</module>
     <module>cust-order</module>
+    <module>cust-report</module>
     <module>cust-gateway</module>
   </modules>
 

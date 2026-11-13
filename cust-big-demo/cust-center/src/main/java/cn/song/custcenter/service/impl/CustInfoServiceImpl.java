@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
 import java.util.Date;
 import java.util.List;
 
@@ -27,6 +28,13 @@ public class CustInfoServiceImpl implements CustInfoService {
                 .eq(CustInfo::getDelFlag, "0")
                 .orderByDesc(CustInfo::getCreateTime);
         return custInfoMapper.selectList(wrapper);
+
+
+    }
+
+    public CustInfo listByTenant02(LambdaQueryWrapper<CustInfo> wrapper) {
+
+        return custInfoMapper.selectOne(wrapper);
     }
 
     public IPage<CustInfo> pageByCondition(Page<CustInfo> page, Long tenantId, String keyword) {

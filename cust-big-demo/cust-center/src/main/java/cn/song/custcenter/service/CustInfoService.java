@@ -1,6 +1,7 @@
 package cn.song.custcenter.service;
 
 import cn.song.custcenter.entity.CustInfo;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import java.util.List;
@@ -11,6 +12,8 @@ import java.util.List;
 public interface CustInfoService {
 
     List<CustInfo> listByTenant(Long tenantId);
+
+    CustInfo listByTenant02(LambdaQueryWrapper<CustInfo> wrapper );
 
     IPage<CustInfo> pageByCondition(Page<CustInfo> page, Long tenantId, String keyword);
 

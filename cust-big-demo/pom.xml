@@ -19,6 +19,7 @@
     <module>cust-common</module>
     <module>cust-center</module>
     <module>cust-metadata</module>
+    <module>cust-order</module>
     <module>cust-gateway</module>
   </modules>
 

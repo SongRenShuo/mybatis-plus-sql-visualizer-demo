@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>cn.song</groupId>
+    <artifactId>cust-big-demo</artifactId>
+    <version>1.0.0</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>cust-order</artifactId>
+  <packaging>jar</packaging>
+  <name>cust-order</name>
+  <description>
+    订单服务：iBatis 2.x 时代遗留子系统。sqlMap XML + SqlMapClient 直连，
+    与 cust-metadata（原生 MyBatis）、cust-center（MyBatis-Plus）、
+    cust-report（JPA）形成四代 ORM 并存的多模块解析面。
+  </description>
+
+  <properties>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>cn.song</groupId>
+      <artifactId>cust-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!--
+      编译期真实依赖：SqlMapClient / SqlMapClientBuilder / Resources 都在这里。
+      2.3.4.726 是本机 ~/.m2 已有版本（pom 无任何传递依赖），mvn -o 可解析。
+      本模块的 XML 也按 2.x DTD 写（isNotNull/iterate/isEqual），不是 MyBatis 3 语法。
+    -->
+    <dependency>
+      <groupId>org.apache.ibatis</groupId>
+      <artifactId>ibatis-sqlmap</artifactId>
+      <version>2.3.4.726</version>
+    </dependency>
+    <!--
+      真实工程的 JDBC 驱动只在运行期需要，编译期用不到，保持注释：
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>8.0.33</version>
+    </dependency>
+    -->
+  </dependencies>
+</project>

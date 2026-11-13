@@ -1,9 +1,9 @@
 {
   "modules": {
-    "center": {
-      "java": 4000,
-      "tables": 800,
-      "xml": 800
+    "order": {
+      "java": 1201,
+      "tables": 300,
+      "xml": 301
     }
   },
   "seed": "20261113",
@@ -15,8 +15,8 @@
   },
   "totals": {
     "gatewayDuplicateNameGroups": 0,
-    "javaFiles": 4000,
-    "tables": 800,
-    "xmlFiles": 800
+    "javaFiles": 1201,
+    "tables": 300,
+    "xmlFiles": 301
   }
 }

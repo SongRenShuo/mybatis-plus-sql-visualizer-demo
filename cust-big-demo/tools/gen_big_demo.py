@@ -1,0 +1,1886 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""cust-big-demo 大工程压力语料生成器。
+
+用途
+----
+把 cust-big-demo 从「4 模块 / 40 套 MBG 三件套」扩到「2000+ 表 / 上万类文件 /
+多模块多 ORM」的规模，用来复现「打开插件预览即卡死」这类真实工程（表 1000+、
+实体类上万）的性能问题。
+
+生成的语料按模块区分包名，互不冲突：
+
+    com.demo.cust.metadata.*   原生 MyBatis + MBG 三件套（Entity/Example/Mapper + XML）
+    com.demo.cust.center.*     MyBatis-Plus（BaseMapper + QueryWrapper/LambdaQueryWrapper）
+    com.demo.cust.order.*      iBatis 2.x（sqlMap XML + SqlMapClient）
+    com.demo.cust.report.*     JPA 注解实体 + JdbcTemplate 字符串 SQL
+    com.demo.cust.gateway.*    网关，以及 12 组跨模块同名类（短名多候选解析面）
+
+仓内既有的 cn.song.cust* 40 套语料保持原样，本脚本只写 com.demo.cust.* 与
+resources 下的生成文件；每个生成文件头部都带 `tools/gen_big_demo.py` 标记，
+`--clean` 只删带标记的文件，不会碰手写代码。
+
+用法
+----
+    # 全量（默认 1200/800/300/200，共 2500 张表）
+    python tools/gen_big_demo.py --root .
+
+    # 缩小规模做快速验证
+    python tools/gen_big_demo.py --root . --tables-per-module "metadata=25,center=15,order=6,report=4"
+
+    # 只重生成某几个模块
+    python tools/gen_big_demo.py --root . --modules metadata,center
+
+    # 删掉所有生成物（只删带标记的文件）
+    python tools/gen_big_demo.py --root . --clean
+
+确定性
+------
+所有随机性都来自 `random.Random("<seed>|<module>")`，同一 seed 反复生成结果逐字节一致；
+`tools/generated-summary.json` 记录各模块表数与文件数，可用于比对。
+
+本脚本只用 Python 标准库，不联网。
+"""
+
+import argparse
+import json
+import random
+import re
+import sys
+from pathlib import Path
+
+MARKER = "tools/gen_big_demo.py"
+
+DEFAULT_TABLES = {
+    "metadata": 1200,
+    "center": 800,
+    "order": 300,
+    "report": 200,
+}
+
+MODULE_JAVA_ROOT = {
+    "metadata": "cust-metadata",
+    "center": "cust-center",
+    "order": "cust-order",
+    "report": "cust-report",
+    "gateway": "cust-gateway",
+}
+
+TABLE_PREFIX = {
+    "metadata": "md",
+    "center": "ct",
+    "order": "od",
+    "report": "rp",
+}
+
+CLASS_PREFIX = {
+    "metadata": "Md",
+    "center": "Ct",
+    "order": "Od",
+    "report": "Rp",
+}
+
+DOMAIN_WORDS = [
+    "customer", "account", "contract", "invoice", "payment", "shipment",
+    "product", "inventory", "supplier", "partner", "campaign", "ticket",
+    "asset", "ledger", "settlement", "channel", "region", "warehouse",
+    "employee", "department", "project", "task", "audit", "risk",
+    "policy", "claim", "premium", "deposit", "loan", "card",
+    "voucher", "promotion", "logistics", "carrier", "route", "station",
+    "meter", "device", "sensor", "alarm",
+]
+
+# (field, column, javaType, jdbcType, label)
+BASE_COLUMNS = [
+    ("id", "ID", "Long", "BIGINT", "主键ID"),
+    ("tenantId", "TENANT_ID", "Long", "BIGINT", "租户ID"),
+    ("bizCode", "BIZ_CODE", "String", "VARCHAR", "业务编号"),
+    ("bizName", "BIZ_NAME", "String", "VARCHAR", "业务名称"),
+    ("status", "STATUS", "String", "VARCHAR", "状态"),
+    ("delFlag", "DEL_FLAG", "String", "CHAR", "删除标记"),
+    ("createTime", "CREATE_TIME", "Date", "TIMESTAMP", "创建时间"),
+    ("updateTime", "UPDATE_TIME", "Date", "TIMESTAMP", "更新时间"),
+    ("remark", "REMARK", "String", "VARCHAR", "备注"),
+]
+
+# 扩展列：字段名/类型随表变化，候选类型不同，取值由 seed 决定
+EXTRA_COLUMNS = [
+    ("refNo", "REF_NO", ["String"], "外部单号"),
+    ("channelCode", "CHANNEL_CODE", ["String"], "渠道编码"),
+    ("regionCode", "REGION_CODE", ["String"], "区域编码"),
+    ("sourceType", "SOURCE_TYPE", ["String"], "来源类型"),
+    ("amount", "AMOUNT", ["BigDecimal", "Long"], "金额"),
+    ("quantity", "QUANTITY", ["Integer"], "数量"),
+    ("rateValue", "RATE_VALUE", ["BigDecimal", "Double"], "费率"),
+    ("priority", "PRIORITY", ["Integer"], "优先级"),
+    ("startDate", "START_DATE", ["Date"], "开始日期"),
+    ("endDate", "END_DATE", ["Date"], "结束日期"),
+    ("versionNo", "VERSION_NO", ["Integer", "Long"], "版本号"),
+    ("score", "SCORE", ["Integer", "Long"], "评分"),
+]
+
+TYPE_JDBC = {
+    "Long": "BIGINT",
+    "Integer": "INTEGER",
+    "String": "VARCHAR",
+    "Date": "TIMESTAMP",
+    "BigDecimal": "DECIMAL",
+    "Double": "DOUBLE",
+}
+
+GATEWAY_GROUPS = [
+    # (简单类名, 另一侧的模块, 网关侧子包)
+    ("CustomerProfile", "metadata", "api"),
+    ("OrderSnapshot", "order", "adapter"),
+    ("ReportSummary", "report", "dto"),
+    ("DictItem", "center", "api"),
+    ("TenantInfo", "center", "api"),
+    ("UserAccount", "center", "adapter"),
+    ("AddressInfo", "metadata", "dto"),
+    ("AuditTrail", "metadata", "adapter"),
+    ("TagItem", "center", "dto"),
+    ("CurrencyAmount", "report", "api"),
+    ("PageQuery", "metadata", "api"),
+    ("StatusEnum", "order", "dto"),
+]
+
+
+# ---------------------------------------------------------------------------
+# 小工具
+# ---------------------------------------------------------------------------
+
+def pascal(text):
+    return "".join(part[:1].upper() + part[1:] for part in re.split(r"[_\-\s]+", text) if part)
+
+
+def camel(text):
+    p = pascal(text)
+    return p[:1].lower() + p[1:]
+
+
+def java_imports(jtypes, extra=()):
+    imports = set(extra)
+    if "Date" in jtypes:
+        imports.add("java.util.Date")
+    if "BigDecimal" in jtypes:
+        imports.add("java.math.BigDecimal")
+    return sorted(imports)
+
+
+def header(seed):
+    return (
+        "/*\n"
+        " * Generated by %s (seed=%s). Do not edit by hand.\n"
+        " * 重新生成：python tools/gen_big_demo.py --root . --seed %s\n"
+        " */\n" % (MARKER, seed, seed)
+    )
+
+
+def xml_header(seed):
+    return (
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<!-- Generated by %s (seed=%s). Do not edit by hand. -->\n"
+        % (MARKER, seed)
+    )
+
+
+class Col(object):
+    __slots__ = ("field", "column", "jtype", "jdbc", "label")
+
+    def __init__(self, field, column, jtype, jdbc, label):
+        self.field = field
+        self.column = column
+        self.jtype = jtype
+        self.jdbc = jdbc
+        self.label = label
+
+    @property
+    def lower_column(self):
+        return self.column.lower()
+
+    @property
+    def cap(self):
+        return self.field[:1].upper() + self.field[1:]
+
+
+def table_name(module, domain, index):
+    return "%s_%s_%04d" % (TABLE_PREFIX[module], domain, index)
+
+
+def class_name(module, domain, index):
+    return "%s%s%04d" % (CLASS_PREFIX[module], pascal(domain), index)
+
+
+def build_columns(module, rng):
+    """按模块返回列定义；metadata/order 会随机去掉非必需列，制造列集差异。"""
+    base = list(BASE_COLUMNS)
+    if module in ("metadata", "order"):
+        drop = set()
+        if rng.random() < 0.34:
+            drop.add("remark")
+        if rng.random() < 0.28:
+            drop.add("updateTime")
+        base = [c for c in base if c[0] not in drop]
+    extras = []
+    picked = rng.sample(EXTRA_COLUMNS, rng.randint(0, 4))
+    for field, column, types, label in picked:
+        jtype = rng.choice(types)
+        extras.append((field, column, jtype, TYPE_JDBC[jtype], label))
+    return [Col(*c) for c in (base + extras)]
+
+
+def build_tables(module, count, seed):
+    rng = random.Random("cust-big-demo|%s|%s" % (seed, module))
+    tables = []
+    for i in range(count):
+        base_domain = DOMAIN_WORDS[i % len(DOMAIN_WORDS)]
+        cycle = i // len(DOMAIN_WORDS)
+        domain = base_domain if cycle == 0 else "%s%d" % (base_domain, cycle + 1)
+        domain_snake = re.sub(r"(?<!^)(?=[A-Z])", "_", domain).lower()
+        idx = i + 1
+        tables.append({
+            "module": module,
+            "index": idx,
+            "domain": domain_snake,
+            "table": table_name(module, domain_snake, idx),
+            "cls": class_name(module, domain, idx),
+            "columns": build_columns(module, rng),
+        })
+    return tables
+
+
+def write_text(path, text):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = text.encode("utf-8")
+    if path.exists():
+        try:
+            if path.read_bytes() == data:
+                return False
+        except OSError:
+            pass
+    path.write_bytes(data)
+    return True
+
+
+def write_if_changed(path, text):
+    return write_text(path, text)
+
+
+def module_java_dir(root, module, sub):
+    pkg_path = sub.replace(".", "/")
+    return Path(root) / MODULE_JAVA_ROOT[module] / "src" / "main" / "java" / pkg_path
+
+
+def module_res_dir(root, module, sub):
+    return Path(root) / MODULE_JAVA_ROOT[module] / "src" / "main" / "resources" / sub
+
+
+# ---------------------------------------------------------------------------
+# 通用 Java 片段
+# ---------------------------------------------------------------------------
+
+def pojo_body(cols, indent="    "):
+    """生成字段 + getter/setter。"""
+    lines = []
+    lines.append("%sprivate static final long serialVersionUID = 1L;" % indent)
+    for c in cols:
+        lines.append("")
+        lines.append("%s/** %s */" % (indent, c.label))
+        lines.append("%sprivate %s %s;" % (indent, c.jtype, c.field))
+    for c in cols:
+        lines.append("")
+        lines.append("%spublic %s get%s() {" % (indent, c.jtype, c.cap))
+        lines.append("%s    return %s;" % (indent, c.field))
+        lines.append("%s}" % indent)
+        lines.append("")
+        lines.append("%spublic void set%s(%s %s) {" % (indent, c.cap, c.jtype, c.field))
+        lines.append("%s    this.%s = %s;" % (indent, c.field, c.field))
+        lines.append("%s}" % indent)
+    return lines
+
+
+def gen_simple_pojo(pkg, cls, cols, doc, seed):
+    lines = [header(seed), "package %s;" % pkg, ""]
+    for imp in java_imports({c.jtype for c in cols}, {"java.io.Serializable"}):
+        lines.append("import %s;" % imp)
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s" % doc)
+    lines.append(" */")
+    lines.append("public class %s implements Serializable {" % cls)
+    lines.append("")
+    lines.extend(pojo_body(cols))
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# cust-metadata：原生 MyBatis + MBG 三件套
+# ---------------------------------------------------------------------------
+
+def gen_metadata_entity(t, seed):
+    pkg = "com.demo.cust.metadata.entity"
+    lines = [header(seed), "package %s;" % pkg, ""]
+    for imp in java_imports({c.jtype for c in t["columns"]}, {"java.io.Serializable"}):
+        lines.append("import %s;" % imp)
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 表实体（MyBatis Generator 生成风格，字段与列一一对应）。" % t["table"].upper())
+    lines.append(" *")
+    lines.append(" * <p>本类只承载列映射需要的 getter/setter，不含业务逻辑。")
+    lines.append(" */")
+    lines.append("public class %s implements Serializable {" % t["cls"])
+    lines.append("")
+    lines.extend(pojo_body(t["columns"]))
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def example_column_methods(c):
+    """MBG Example Criteria 上的 andXxxYyy 方法块。"""
+    cap = c.cap
+    t = c.jtype
+    lower = c.lower_column
+    lines = []
+
+    def method(sig, body_lines):
+        lines.append("        public Criteria %s {" % sig)
+        for b in body_lines:
+            lines.append("            %s" % b)
+        lines.append("            return (Criteria) this;")
+        lines.append("        }")
+        lines.append("")
+
+    method("and%sIsNull()" % cap, ['addCriterion("%s is null");' % lower])
+    method("and%sIsNotNull()" % cap, ['addCriterion("%s is not null");' % lower])
+    method("and%sEqualTo(%s value)" % (cap, t),
+           ['addCriterion("%s =", value, "%s");' % (lower, c.field)])
+    method("and%sNotEqualTo(%s value)" % (cap, t),
+           ['addCriterion("%s <>", value, "%s");' % (lower, c.field)])
+    method("and%sGreaterThan(%s value)" % (cap, t),
+           ['addCriterion("%s >", value, "%s");' % (lower, c.field)])
+    method("and%sGreaterThanOrEqualTo(%s value)" % (cap, t),
+           ['addCriterion("%s >=", value, "%s");' % (lower, c.field)])
+    method("and%sLessThan(%s value)" % (cap, t),
+           ['addCriterion("%s <", value, "%s");' % (lower, c.field)])
+    method("and%sLessThanOrEqualTo(%s value)" % (cap, t),
+           ['addCriterion("%s <=", value, "%s");' % (lower, c.field)])
+    if c.jtype == "String":
+        method("and%sLike(String value)" % cap,
+               ['addCriterion("%s like", value, "%s");' % (lower, c.field)])
+        method("and%sNotLike(String value)" % cap,
+               ['addCriterion("%s not like", value, "%s");' % (lower, c.field)])
+    method("and%sIn(List<%s> values)" % (cap, t),
+           ['addCriterion("%s in", values, "%s");' % (lower, c.field)])
+    method("and%sNotIn(List<%s> values)" % (cap, t),
+           ['addCriterion("%s not in", values, "%s");' % (lower, c.field)])
+    method("and%sBetween(%s value1, %s value2)" % (cap, t, t),
+           ['addCriterion("%s between", value1, value2, "%s");' % (lower, c.field)])
+    method("and%sNotBetween(%s value1, %s value2)" % (cap, t, t),
+           ['addCriterion("%s not between", value1, value2, "%s");' % (lower, c.field)])
+    return lines
+
+
+def gen_metadata_example(t, seed):
+    ex = t["cls"] + "Example"
+    cols = t["columns"]
+    lines = [header(seed), "package com.demo.cust.metadata.example;", ""]
+    for imp in java_imports({c.jtype for c in cols},
+                            {"java.io.Serializable", "java.util.ArrayList", "java.util.List"}):
+        lines.append("import %s;" % imp)
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 表 Example（MyBatis Generator 生成风格）。" % t["table"].upper())
+    lines.append(" *")
+    lines.append(" * <p>四层结构：oredCriteria / GeneratedCriteria / Criteria / Criterion。")
+    lines.append(" * 插件预览 selectByExample 时从 andXxxYyy 方法体的 addCriterion 常量反推列名，")
+    lines.append(" * 因此这些方法体不能简化。")
+    lines.append(" */")
+    lines.append("public class %s implements Serializable {" % ex)
+    lines.append("")
+    lines.append("    private static final long serialVersionUID = 1L;")
+    lines.append("")
+    lines.append("    protected String orderByClause;")
+    lines.append("")
+    lines.append("    protected boolean distinct;")
+    lines.append("")
+    lines.append("    protected List<Criteria> oredCriteria;")
+    lines.append("")
+    lines.append("    public %s() {" % ex)
+    lines.append("        oredCriteria = new ArrayList<Criteria>();")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public void setOrderByClause(String orderByClause) {")
+    lines.append("        this.orderByClause = orderByClause;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public String getOrderByClause() {")
+    lines.append("        return orderByClause;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public void setDistinct(boolean distinct) {")
+    lines.append("        this.distinct = distinct;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public boolean isDistinct() {")
+    lines.append("        return distinct;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public List<Criteria> getOredCriteria() {")
+    lines.append("        return oredCriteria;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public void or(Criteria criteria) {")
+    lines.append("        oredCriteria.add(criteria);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public Criteria or() {")
+    lines.append("        Criteria criteria = createCriteriaInternal();")
+    lines.append("        oredCriteria.add(criteria);")
+    lines.append("        return criteria;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public Criteria createCriteria() {")
+    lines.append("        Criteria criteria = createCriteriaInternal();")
+    lines.append("        if (oredCriteria.size() == 0) {")
+    lines.append("            oredCriteria.add(criteria);")
+    lines.append("        }")
+    lines.append("        return criteria;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    protected Criteria createCriteriaInternal() {")
+    lines.append("        Criteria criteria = new Criteria();")
+    lines.append("        return criteria;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public void clear() {")
+    lines.append("        oredCriteria.clear();")
+    lines.append("        orderByClause = null;")
+    lines.append("        distinct = false;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    protected abstract static class GeneratedCriteria implements Serializable {")
+    lines.append("")
+    lines.append("        private static final long serialVersionUID = 1L;")
+    lines.append("")
+    lines.append("        protected List<Criterion> criteria;")
+    lines.append("")
+    lines.append("        protected GeneratedCriteria() {")
+    lines.append("            super();")
+    lines.append("            criteria = new ArrayList<Criterion>();")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        public boolean isValid() {")
+    lines.append("            return criteria.size() > 0;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        public List<Criterion> getAllCriteria() {")
+    lines.append("            return criteria;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        public List<Criterion> getCriteria() {")
+    lines.append("            return criteria;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        protected void addCriterion(String condition) {")
+    lines.append("            if (condition == null) {")
+    lines.append('                throw new RuntimeException("Value for condition cannot be null");')
+    lines.append("            }")
+    lines.append("            criteria.add(new Criterion(condition));")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        protected void addCriterion(String condition, Object value, String property) {")
+    lines.append("            if (value == null) {")
+    lines.append('                throw new RuntimeException("Value for " + property + " cannot be null");')
+    lines.append("            }")
+    lines.append("            criteria.add(new Criterion(condition, value));")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        protected void addCriterion(String condition, Object value1, Object value2, String property) {")
+    lines.append("            if (value1 == null || value2 == null) {")
+    lines.append('                throw new RuntimeException("Between values for " + property + " cannot be null");')
+    lines.append("            }")
+    lines.append("            criteria.add(new Criterion(condition, value1, value2));")
+    lines.append("        }")
+    lines.append("")
+    for c in cols:
+        lines.extend(example_column_methods(c))
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public static class Criteria extends GeneratedCriteria {")
+    lines.append("")
+    lines.append("        private static final long serialVersionUID = 1L;")
+    lines.append("")
+    lines.append("        protected Criteria() {")
+    lines.append("            super();")
+    lines.append("        }")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public static class Criterion implements Serializable {")
+    lines.append("")
+    lines.append("        private static final long serialVersionUID = 1L;")
+    lines.append("")
+    lines.append("        private String condition;")
+    lines.append("")
+    lines.append("        private Object value;")
+    lines.append("")
+    lines.append("        private Object secondValue;")
+    lines.append("")
+    lines.append("        private boolean noValue;")
+    lines.append("")
+    lines.append("        private boolean singleValue;")
+    lines.append("")
+    lines.append("        private boolean betweenValue;")
+    lines.append("")
+    lines.append("        private boolean listValue;")
+    lines.append("")
+    lines.append("        private String typeHandler;")
+    lines.append("")
+    lines.append("        public String getCondition() {")
+    lines.append("            return condition;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        public Object getValue() {")
+    lines.append("            return value;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        public Object getSecondValue() {")
+    lines.append("            return secondValue;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        public boolean isNoValue() {")
+    lines.append("            return noValue;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        public boolean isSingleValue() {")
+    lines.append("            return singleValue;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        public boolean isBetweenValue() {")
+    lines.append("            return betweenValue;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        public boolean isListValue() {")
+    lines.append("            return listValue;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        public String getTypeHandler() {")
+    lines.append("            return typeHandler;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        protected Criterion(String condition) {")
+    lines.append("            super();")
+    lines.append("            this.condition = condition;")
+    lines.append("            this.typeHandler = null;")
+    lines.append("            this.noValue = true;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        protected Criterion(String condition, Object value) {")
+    lines.append("            this(condition, value, null);")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        protected Criterion(String condition, Object value, String typeHandler) {")
+    lines.append("            super();")
+    lines.append("            this.condition = condition;")
+    lines.append("            this.value = value;")
+    lines.append("            this.typeHandler = typeHandler;")
+    lines.append("            if (value instanceof List<?>) {")
+    lines.append("                this.listValue = true;")
+    lines.append("            } else {")
+    lines.append("                this.singleValue = true;")
+    lines.append("            }")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        protected Criterion(String condition, Object value, Object secondValue) {")
+    lines.append("            super();")
+    lines.append("            this.condition = condition;")
+    lines.append("            this.value = value;")
+    lines.append("            this.secondValue = secondValue;")
+    lines.append("            this.betweenValue = true;")
+    lines.append("        }")
+    lines.append("    }")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_metadata_mapper(t, seed):
+    cls = t["cls"]
+    lines = [header(seed), "package com.demo.cust.metadata.mapper;", ""]
+    lines.append("import com.demo.cust.metadata.entity.%s;" % cls)
+    lines.append("import com.demo.cust.metadata.example.%sExample;" % cls)
+    lines.append("")
+    lines.append("import org.apache.ibatis.annotations.Param;")
+    lines.append("")
+    lines.append("import java.util.List;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 表 Mapper（MyBatis Generator 生成风格）。" % t["table"].upper())
+    lines.append(" *")
+    lines.append(" * <p>Example 查询入口是全仓调用点最密集的方法。")
+    lines.append(" */")
+    lines.append("public interface %sMapper {" % cls)
+    lines.append("")
+    lines.append("    int countByExample(%sExample example);" % cls)
+    lines.append("")
+    lines.append("    int deleteByExample(%sExample example);" % cls)
+    lines.append("")
+    lines.append("    int deleteByPrimaryKey(Long id);")
+    lines.append("")
+    lines.append("    int insert(%s record);" % cls)
+    lines.append("")
+    lines.append("    int insertSelective(%s record);" % cls)
+    lines.append("")
+    lines.append("    List<%s> selectByExample(%sExample example);" % (cls, cls))
+    lines.append("")
+    lines.append("    %s selectByPrimaryKey(Long id);" % cls)
+    lines.append("")
+    lines.append('    int updateByExampleSelective(@Param("record") %s record, @Param("example") %sExample example);'
+                 % (cls, cls))
+    lines.append("")
+    lines.append('    int updateByExample(@Param("record") %s record, @Param("example") %sExample example);'
+                 % (cls, cls))
+    lines.append("")
+    lines.append("    int updateByPrimaryKeySelective(%s record);" % cls)
+    lines.append("")
+    lines.append("    int updateByPrimaryKey(%s record);" % cls)
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_metadata_service(t, seed):
+    cls = t["cls"]
+    lines = [header(seed), "package com.demo.cust.metadata.service;", ""]
+    import_types = {"java.util.List"}
+    if any(c.jtype == "Date" for c in t["columns"]):
+        import_types.add("java.util.Date")
+    lines.append("import com.demo.cust.metadata.entity.%s;" % cls)
+    for imp in sorted(import_types):
+        lines.append("import %s;" % imp)
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 查询服务（MBG Example 调用点入口）。" % t["table"].upper())
+    lines.append(" */")
+    lines.append("public interface %sQueryService {" % cls)
+    lines.append("")
+    lines.append("    List<%s> queryByCondition01(Long tenantId, String bizCode, String bizName,"
+                 " String status, Date startTime, Date endTime);" % cls)
+    lines.append("")
+    lines.append("    List<%s> queryByCondition02(Long tenantId, String bizCode, String bizName,"
+                 " String status, Date startTime, Date endTime);" % cls)
+    lines.append("")
+    lines.append("    int countByCondition(Long tenantId, String status);")
+    lines.append("")
+    lines.append("    %s queryById(Long id);" % cls)
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_metadata_service_impl(t, seed):
+    cls = t["cls"]
+    lines = [header(seed), "package com.demo.cust.metadata.service.impl;", ""]
+    lines.append("import com.demo.cust.metadata.entity.%s;" % cls)
+    lines.append("import com.demo.cust.metadata.example.%sExample;" % cls)
+    lines.append("import com.demo.cust.metadata.mapper.%sMapper;" % cls)
+    lines.append("import com.demo.cust.metadata.service.%sQueryService;" % cls)
+    lines.append("import java.util.ArrayList;")
+    lines.append("import java.util.Date;")
+    lines.append("import java.util.List;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 查询服务实现（基础档）。" % t["table"].upper())
+    lines.append(" *")
+    lines.append(" * <p>一个方法两条链：先 new Example，再 createCriteria().andXxx(...)，")
+    lines.append(" * 两条链各自交给 mapper.selectByExample —— 这是既有缺陷夹具的形态，勿合并。")
+    lines.append(" */")
+    lines.append("public class %sQueryServiceImpl implements %sQueryService {" % (cls, cls))
+    lines.append("")
+    lines.append("    private final %sMapper mapper;" % cls)
+    lines.append("")
+    lines.append("    public %sQueryServiceImpl(%sMapper mapper) {" % (cls, cls))
+    lines.append("        this.mapper = mapper;")
+    lines.append("    }")
+    lines.append("")
+
+    def chain_block(method, a, b):
+        lines.append("    public List<%s> %s(Long tenantId, String bizCode, String bizName,"
+                     " String status, Date startTime, Date endTime) {" % (cls, method))
+        lines.append("        List<%s> result = new ArrayList<%s>();" % (cls, cls))
+        lines.append("        %sExample exampleA = new %sExample();" % (cls, cls))
+        lines.append("        exampleA.createCriteria()%s;" % a)
+        lines.append("        result.addAll(mapper.selectByExample(exampleA));")
+        lines.append("        %sExample exampleB = new %sExample();" % (cls, cls))
+        lines.append("        exampleB.createCriteria()%s;" % b)
+        lines.append("        result.addAll(mapper.selectByExample(exampleB));")
+        lines.append("        return result;")
+        lines.append("    }")
+        lines.append("")
+
+    chain_block("queryByCondition01",
+                ".andTenantIdEqualTo(tenantId).andBizCodeEqualTo(bizCode)",
+                ".andTenantIdEqualTo(tenantId).andBizNameLike(bizName).andStatusEqualTo(status)")
+    chain_block("queryByCondition02",
+                ".andTenantIdEqualTo(tenantId).andCreateTimeBetween(startTime, endTime)",
+                ".andBizCodeLike(bizCode).andDelFlagEqualTo(\"0\")")
+    lines.append("    public int countByCondition(Long tenantId, String status) {")
+    lines.append("        %sExample example = new %sExample();" % (cls, cls))
+    lines.append("        example.createCriteria().andTenantIdEqualTo(tenantId)"
+                 ".andStatusEqualTo(status).andDelFlagEqualTo(\"0\");")
+    lines.append("        return mapper.countByExample(example);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public %s queryById(Long id) {" % cls)
+    lines.append("        return mapper.selectByPrimaryKey(id);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_metadata_dto_vo_query(t, kind, seed):
+    """kind: dto / vo / query，字段取前若干个业务列，随表变化。"""
+    pkg = "com.demo.cust.metadata.%s" % kind
+    suffix = {"dto": "DTO", "vo": "VO", "query": "Query"}[kind]
+    cls = t["cls"] + suffix
+    cols = [c for c in t["columns"] if c.field != "id"][:5]
+    doc = {
+        "dto": "跨服务传输对象。",
+        "vo": "页面展示对象。",
+        "query": "查询条件对象。",
+    }[kind]
+    return gen_simple_pojo(pkg, cls, cols, "%s %s" % (t["table"].upper(), doc), seed)
+
+
+def gen_metadata_xml(t, seed):
+    cls = t["cls"]
+    cols = t["columns"]
+    table = t["table"].upper()
+    entity = "com.demo.cust.metadata.entity.%s" % cls
+    example = "com.demo.cust.metadata.example.%sExample" % cls
+    lines = [xml_header(seed).rstrip("\n")]
+    lines.append("<!DOCTYPE mapper PUBLIC \"-//mybatis.org//DTD Mapper 3.0//EN\""
+                 " \"http://mybatis.org/dtd/mybatis-3-mapper.dtd\">")
+    lines.append("<mapper namespace=\"com.demo.cust.metadata.mapper.%sMapper\">" % cls)
+    lines.append("  <resultMap id=\"BaseResultMap\" type=\"%s\">" % entity)
+    for i, c in enumerate(cols):
+        tag = "id" if i == 0 else "result"
+        lines.append("    <%s column=\"%s\" jdbcType=\"%s\" property=\"%s\" />"
+                     % (tag, c.column, c.jdbc, c.field))
+    lines.append("  </resultMap>")
+    lines.append("  <sql id=\"Base_Column_List\">")
+    lines.append("    " + ", ".join(c.column for c in cols))
+    lines.append("  </sql>")
+    lines.append("  <sql id=\"Example_Where_Clause\">")
+    lines.append("    <where>")
+    lines.append("      <foreach collection=\"oredCriteria\" item=\"criteria\" separator=\"or\">")
+    lines.append("        <if test=\"criteria.valid\">")
+    lines.append("          <trim prefix=\"(\" prefixOverrides=\"and\" suffix=\")\">")
+    lines.append("            <foreach collection=\"criteria.criteria\" item=\"criterion\">")
+    lines.append("              <choose>")
+    lines.append("                <when test=\"criterion.noValue\">")
+    lines.append("                  and ${criterion.condition}")
+    lines.append("                </when>")
+    lines.append("                <when test=\"criterion.singleValue\">")
+    lines.append("                  and ${criterion.condition} #{criterion.value}")
+    lines.append("                </when>")
+    lines.append("                <when test=\"criterion.betweenValue\">")
+    lines.append("                  and ${criterion.condition} #{criterion.value}"
+                 " and #{criterion.secondValue}")
+    lines.append("                </when>")
+    lines.append("                <when test=\"criterion.listValue\">")
+    lines.append("                  and ${criterion.condition}")
+    lines.append("                  <foreach close=\")\" collection=\"criterion.value\""
+                 " item=\"listItem\" open=\"(\" separator=\",\">")
+    lines.append("                    #{listItem}")
+    lines.append("                  </foreach>")
+    lines.append("                </when>")
+    lines.append("              </choose>")
+    lines.append("            </foreach>")
+    lines.append("          </trim>")
+    lines.append("        </if>")
+    lines.append("      </foreach>")
+    lines.append("    </where>")
+    lines.append("  </sql>")
+    lines.append("  <sql id=\"Update_By_Example_Where_Clause\">")
+    lines.append("    <where>")
+    lines.append("      <foreach collection=\"example.oredCriteria\" item=\"criteria\" separator=\"or\">")
+    lines.append("        <if test=\"criteria.valid\">")
+    lines.append("          <trim prefix=\"(\" prefixOverrides=\"and\" suffix=\")\">")
+    lines.append("            <foreach collection=\"criteria.criteria\" item=\"criterion\">")
+    lines.append("              <choose>")
+    lines.append("                <when test=\"criterion.noValue\">")
+    lines.append("                  and ${criterion.condition}")
+    lines.append("                </when>")
+    lines.append("                <when test=\"criterion.singleValue\">")
+    lines.append("                  and ${criterion.condition} #{criterion.value}")
+    lines.append("                </when>")
+    lines.append("                <when test=\"criterion.betweenValue\">")
+    lines.append("                  and ${criterion.condition} #{criterion.value}"
+                 " and #{criterion.secondValue}")
+    lines.append("                </when>")
+    lines.append("                <when test=\"criterion.listValue\">")
+    lines.append("                  and ${criterion.condition}")
+    lines.append("                  <foreach close=\")\" collection=\"criterion.value\""
+                 " item=\"listItem\" open=\"(\" separator=\",\">")
+    lines.append("                    #{listItem}")
+    lines.append("                  </foreach>")
+    lines.append("                </when>")
+    lines.append("              </choose>")
+    lines.append("            </foreach>")
+    lines.append("          </trim>")
+    lines.append("        </if>")
+    lines.append("      </foreach>")
+    lines.append("    </where>")
+    lines.append("  </sql>")
+    lines.append("  <select id=\"selectByExample\" parameterType=\"%s\" resultMap=\"BaseResultMap\">" % example)
+    lines.append("    select")
+    lines.append("    <if test=\"distinct\">")
+    lines.append("      distinct")
+    lines.append("    </if>")
+    lines.append("    'false' as QUERYID,")
+    lines.append("    <include refid=\"Base_Column_List\" />")
+    lines.append("    from %s" % table)
+    lines.append("    <if test=\"_parameter != null\">")
+    lines.append("      <include refid=\"Example_Where_Clause\" />")
+    lines.append("    </if>")
+    lines.append("    <if test=\"orderByClause != null\">")
+    lines.append("      order by ${orderByClause}")
+    lines.append("    </if>")
+    lines.append("  </select>")
+    lines.append("  <select id=\"selectByPrimaryKey\" parameterType=\"java.lang.Long\" resultMap=\"BaseResultMap\">")
+    lines.append("    select")
+    lines.append("    <include refid=\"Base_Column_List\" />")
+    lines.append("    from %s" % table)
+    lines.append("    where ID = #{id,jdbcType=BIGINT}")
+    lines.append("  </select>")
+    lines.append("  <delete id=\"deleteByPrimaryKey\" parameterType=\"java.lang.Long\">")
+    lines.append("    delete from %s" % table)
+    lines.append("    where ID = #{id,jdbcType=BIGINT}")
+    lines.append("  </delete>")
+    lines.append("  <delete id=\"deleteByExample\" parameterType=\"%s\">" % example)
+    lines.append("    delete from %s" % table)
+    lines.append("    <if test=\"_parameter != null\">")
+    lines.append("      <include refid=\"Example_Where_Clause\" />")
+    lines.append("    </if>")
+    lines.append("  </delete>")
+    lines.append("  <insert id=\"insert\" parameterType=\"%s\">" % entity)
+    lines.append("    insert into %s (%s)" % (table, ", ".join(c.column for c in cols)))
+    lines.append("    values (%s)" % ", ".join("#{%s,jdbcType=%s}" % (c.field, c.jdbc) for c in cols))
+    lines.append("  </insert>")
+    lines.append("  <insert id=\"insertSelective\" parameterType=\"%s\">" % entity)
+    lines.append("    insert into %s" % table)
+    lines.append("    <trim prefix=\"(\" suffix=\")\" suffixOverrides=\",\">")
+    for c in cols:
+        lines.append("      <if test=\"%s != null\">" % c.field)
+        lines.append("        %s," % c.column)
+        lines.append("      </if>")
+    lines.append("    </trim>")
+    lines.append("    <trim prefix=\"values (\" suffix=\")\" suffixOverrides=\",\">")
+    for c in cols:
+        lines.append("      <if test=\"%s != null\">" % c.field)
+        lines.append("        #{%s,jdbcType=%s}," % (c.field, c.jdbc))
+        lines.append("      </if>")
+    lines.append("    </trim>")
+    lines.append("  </insert>")
+    lines.append("  <update id=\"updateByPrimaryKeySelective\" parameterType=\"%s\">" % entity)
+    lines.append("    update %s" % table)
+    lines.append("    <set>")
+    for c in cols:
+        if c.field == "id":
+            continue
+        lines.append("      <if test=\"%s != null\">" % c.field)
+        lines.append("        %s = #{%s,jdbcType=%s}," % (c.column, c.field, c.jdbc))
+        lines.append("      </if>")
+    lines.append("    </set>")
+    lines.append("    where ID = #{id,jdbcType=BIGINT}")
+    lines.append("  </update>")
+    lines.append("  <update id=\"updateByExampleSelective\" parameterType=\"map\">")
+    lines.append("    update %s" % table)
+    lines.append("    <set>")
+    for c in cols:
+        lines.append("      <if test=\"record.%s != null\">" % c.field)
+        lines.append("        %s = #{record.%s,jdbcType=%s}," % (c.column, c.field, c.jdbc))
+        lines.append("      </if>")
+    lines.append("    </set>")
+    lines.append("    <if test=\"_parameter != null\">")
+    lines.append("      <include refid=\"Update_By_Example_Where_Clause\" />")
+    lines.append("    </if>")
+    lines.append("  </update>")
+    lines.append("</mapper>")
+    return "\n".join(lines) + "\n"
+
+
+def generate_metadata(root, seed):
+    tables = build_tables("metadata", DEFAULT_TABLES["metadata"], seed)
+    # 支持外部覆盖表数（由 main 传入）
+    return tables
+
+
+def emit_metadata(root, tables, seed, stats):
+    java_dir = module_java_dir(root, "metadata", "com.demo.cust.metadata")
+    res_dir = module_res_dir(root, "metadata", "mapper")
+    for t in tables:
+        base = t["cls"]
+        write_if_changed(java_dir / "entity" / ("%s.java" % base), gen_metadata_entity(t, seed))
+        write_if_changed(java_dir / "example" / ("%sExample.java" % base), gen_metadata_example(t, seed))
+        write_if_changed(java_dir / "mapper" / ("%sMapper.java" % base), gen_metadata_mapper(t, seed))
+        write_if_changed(java_dir / "service" / ("%sQueryService.java" % base), gen_metadata_service(t, seed))
+        write_if_changed(java_dir / "service" / "impl" / ("%sQueryServiceImpl.java" % base),
+                         gen_metadata_service_impl(t, seed))
+        write_if_changed(java_dir / "dto" / ("%sDTO.java" % base),
+                         gen_metadata_dto_vo_query(t, "dto", seed))
+        write_if_changed(java_dir / "vo" / ("%sVO.java" % base),
+                         gen_metadata_dto_vo_query(t, "vo", seed))
+        write_if_changed(java_dir / "query" / ("%sQuery.java" % base),
+                         gen_metadata_dto_vo_query(t, "query", seed))
+        write_if_changed(res_dir / ("%sMapper.xml" % base), gen_metadata_xml(t, seed))
+        stats["tables"] += 1
+        stats["java"] += 8
+        stats["xml"] += 1
+
+
+# ---------------------------------------------------------------------------
+# cust-center：MyBatis-Plus
+# ---------------------------------------------------------------------------
+
+def gen_center_entity(t, seed):
+    cls = t["cls"]
+    lines = [header(seed), "package com.demo.cust.center.entity;", ""]
+    lines.append("import com.baomidou.mybatisplus.annotation.IdType;")
+    lines.append("import com.baomidou.mybatisplus.annotation.TableField;")
+    lines.append("import com.baomidou.mybatisplus.annotation.TableId;")
+    lines.append("import com.baomidou.mybatisplus.annotation.TableLogic;")
+    lines.append("import com.baomidou.mybatisplus.annotation.TableName;")
+    for imp in java_imports({c.jtype for c in t["columns"]}, {"java.io.Serializable"}):
+        lines.append("import %s;" % imp)
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 实体（MyBatis-Plus，@TableName/@TableId/@TableLogic）。" % t["table"].upper())
+    lines.append(" */")
+    lines.append('@TableName("%s")' % t["table"])
+    lines.append("public class %s implements Serializable {" % cls)
+    lines.append("")
+    lines.append("    private static final long serialVersionUID = 1L;")
+    for c in t["columns"]:
+        lines.append("")
+        lines.append("    /** %s */" % c.label)
+        if c.field == "id":
+            lines.append('    @TableId(value = "%s", type = IdType.AUTO)' % c.column.lower())
+        elif c.field == "delFlag":
+            lines.append("    @TableLogic")
+            lines.append('    @TableField("%s")' % c.column.lower())
+        else:
+            lines.append('    @TableField("%s")' % c.column.lower())
+        lines.append("    private %s %s;" % (c.jtype, c.field))
+    for c in t["columns"]:
+        lines.append("")
+        lines.append("    public %s get%s() {" % (c.jtype, c.cap))
+        lines.append("        return %s;" % c.field)
+        lines.append("    }")
+        lines.append("")
+        lines.append("    public void set%s(%s %s) {" % (c.cap, c.jtype, c.field))
+        lines.append("        this.%s = %s;" % (c.field, c.field))
+        lines.append("    }")
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_center_mapper(t, seed):
+    cls = t["cls"]
+    lines = [header(seed), "package com.demo.cust.center.mapper;", ""]
+    lines.append("import com.baomidou.mybatisplus.core.mapper.BaseMapper;")
+    lines.append("import com.demo.cust.center.entity.%s;" % cls)
+    lines.append("import org.apache.ibatis.annotations.Mapper;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 表 Mapper（MyBatis-Plus BaseMapper）。" % t["table"].upper())
+    lines.append(" */")
+    lines.append("@Mapper")
+    lines.append("public interface %sMapper extends BaseMapper<%s> {" % (cls, cls))
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_center_service(t, seed):
+    cls = t["cls"]
+    lines = [header(seed), "package com.demo.cust.center.service;", ""]
+    lines.append("import com.baomidou.mybatisplus.core.metadata.IPage;")
+    lines.append("import com.baomidou.mybatisplus.extension.plugins.pagination.Page;")
+    lines.append("import com.demo.cust.center.entity.%s;" % cls)
+    lines.append("import java.util.List;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 服务接口（Wrapper / Page 压力档）。" % t["table"].upper())
+    lines.append(" */")
+    lines.append("public interface %sService {" % cls)
+    lines.append("")
+    lines.append("    List<%s> listByTenant(Long tenantId);" % cls)
+    lines.append("")
+    lines.append("    %s getByCode(String bizCode);" % cls)
+    lines.append("")
+    lines.append("    List<%s> listByName(String bizName, String status);" % cls)
+    lines.append("")
+    lines.append("    int updateStatus(Long id, String status);")
+    lines.append("")
+    lines.append("    long countByTenant(Long tenantId);")
+    lines.append("")
+    lines.append("    List<%s> pageList(Long tenantId, String keyword);" % cls)
+    lines.append("")
+    lines.append("    int deleteByCode(String bizCode);")
+    lines.append("")
+    lines.append("    IPage<%s> pageByTenant(Page<%s> page, Long tenantId);" % (cls, cls))
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_center_service_impl(t, seed):
+    cls = t["cls"]
+    lines = [header(seed), "package com.demo.cust.center.service.impl;", ""]
+    lines.append("import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;")
+    lines.append("import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;")
+    lines.append("import com.baomidou.mybatisplus.core.metadata.IPage;")
+    lines.append("import com.baomidou.mybatisplus.extension.plugins.pagination.Page;")
+    lines.append("import com.demo.cust.center.entity.%s;" % cls)
+    lines.append("import com.demo.cust.center.mapper.%sMapper;" % cls)
+    lines.append("import com.demo.cust.center.service.%sService;" % cls)
+    lines.append("import java.util.Date;")
+    lines.append("import java.util.List;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 服务实现（LambdaQueryWrapper / QueryWrapper / Page 调用点）。" % t["table"].upper())
+    lines.append(" */")
+    lines.append("public class %sServiceImpl implements %sService {" % (cls, cls))
+    lines.append("")
+    lines.append("    private final %sMapper mapper;" % cls)
+    lines.append("")
+    lines.append("    public %sServiceImpl(%sMapper mapper) {" % (cls, cls))
+    lines.append("        this.mapper = mapper;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public List<%s> listByTenant(Long tenantId) {" % cls)
+    lines.append("        LambdaQueryWrapper<%s> wrapper = new LambdaQueryWrapper<%s>();" % (cls, cls))
+    lines.append("        wrapper.eq(%s::getTenantId, tenantId)" % cls)
+    lines.append("                .eq(%s::getDelFlag, \"0\")" % cls)
+    lines.append("                .orderByDesc(%s::getCreateTime);" % cls)
+    lines.append("        return mapper.selectList(wrapper);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public %s getByCode(String bizCode) {" % cls)
+    lines.append("        LambdaQueryWrapper<%s> wrapper = new LambdaQueryWrapper<%s>();" % (cls, cls))
+    lines.append("        wrapper.eq(%s::getBizCode, bizCode).eq(%s::getDelFlag, \"0\");" % (cls, cls))
+    lines.append("        return mapper.selectOne(wrapper);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public List<%s> listByName(String bizName, String status) {" % cls)
+    lines.append("        LambdaQueryWrapper<%s> wrapper = new LambdaQueryWrapper<%s>();" % (cls, cls))
+    lines.append("        wrapper.like(%s::getBizName, bizName).eq(%s::getStatus, status);" % (cls, cls))
+    lines.append("        return mapper.selectList(wrapper);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public int updateStatus(Long id, String status) {")
+    lines.append("        %s entity = new %s();" % (cls, cls))
+    lines.append("        entity.setStatus(status);")
+    lines.append("        entity.setUpdateTime(new Date());")
+    lines.append("        LambdaQueryWrapper<%s> wrapper = new LambdaQueryWrapper<%s>();" % (cls, cls))
+    lines.append("        wrapper.eq(%s::getId, id);" % cls)
+    lines.append("        return mapper.update(entity, wrapper);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public long countByTenant(Long tenantId) {")
+    lines.append("        QueryWrapper<%s> wrapper = new QueryWrapper<%s>();" % (cls, cls))
+    lines.append("        wrapper.eq(\"tenant_id\", tenantId).eq(\"del_flag\", \"0\");")
+    lines.append("        Long count = mapper.selectCount(wrapper);")
+    lines.append("        return count == null ? 0L : count.longValue();")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public List<%s> pageList(Long tenantId, String keyword) {" % cls)
+    lines.append("        QueryWrapper<%s> wrapper = new QueryWrapper<%s>();" % (cls, cls))
+    lines.append("        wrapper.eq(\"tenant_id\", tenantId)")
+    lines.append("                .like(\"biz_name\", keyword)")
+    lines.append("                .orderByDesc(\"create_time\");")
+    lines.append("        return mapper.selectList(wrapper);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public int deleteByCode(String bizCode) {")
+    lines.append("        QueryWrapper<%s> wrapper = new QueryWrapper<%s>();" % (cls, cls))
+    lines.append("        wrapper.eq(\"biz_code\", bizCode);")
+    lines.append("        return mapper.delete(wrapper);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public IPage<%s> pageByTenant(Page<%s> page, Long tenantId) {" % (cls, cls))
+    lines.append("        QueryWrapper<%s> wrapper = new QueryWrapper<%s>();" % (cls, cls))
+    lines.append("        wrapper.eq(\"tenant_id\", tenantId).eq(\"del_flag\", \"0\");")
+    lines.append("        return mapper.selectPage(page, wrapper);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_center_vo(t, seed):
+    cls = t["cls"] + "VO"
+    cols = [c for c in t["columns"] if c.field != "id"][:5]
+    return gen_simple_pojo("com.demo.cust.center.vo", cls,
+                           cols, "%s 页面展示对象。" % t["table"].upper(), seed)
+
+
+def gen_center_xml(t, seed):
+    cls = t["cls"]
+    cols = t["columns"]
+    table = t["table"].upper()
+    entity = "com.demo.cust.center.entity.%s" % cls
+    lines = [xml_header(seed).rstrip("\n")]
+    lines.append("<!DOCTYPE mapper PUBLIC \"-//mybatis.org//DTD Mapper 3.0//EN\""
+                 " \"http://mybatis.org/dtd/mybatis-3-mapper.dtd\">")
+    lines.append("<mapper namespace=\"com.demo.cust.center.mapper.%sMapper\">" % cls)
+    lines.append("  <resultMap id=\"BaseResultMap\" type=\"%s\">" % entity)
+    for i, c in enumerate(cols):
+        tag = "id" if i == 0 else "result"
+        lines.append("    <%s column=\"%s\" jdbcType=\"%s\" property=\"%s\" />"
+                     % (tag, c.column, c.jdbc, c.field))
+    lines.append("  </resultMap>")
+    lines.append("  <sql id=\"Base_Column_List\">")
+    lines.append("    " + ", ".join(c.column for c in cols))
+    lines.append("  </sql>")
+    lines.append("  <select id=\"selectByTenant\" resultMap=\"BaseResultMap\">")
+    lines.append("    select <include refid=\"Base_Column_List\" /> from %s" % table)
+    lines.append("    <where>")
+    lines.append("      <if test=\"tenantId != null\">")
+    lines.append("        and TENANT_ID = #{tenantId}")
+    lines.append("      </if>")
+    lines.append("      <choose>")
+    lines.append("        <when test=\"status != null\">")
+    lines.append("          and STATUS = #{status}")
+    lines.append("        </when>")
+    lines.append("        <otherwise>")
+    lines.append("          and DEL_FLAG = '0'")
+    lines.append("        </otherwise>")
+    lines.append("      </choose>")
+    lines.append("      <if test=\"codes != null and codes.size() > 0\">")
+    lines.append("        and BIZ_CODE in")
+    lines.append("        <foreach collection=\"codes\" item=\"code\" open=\"(\" close=\")\" separator=\",\">")
+    lines.append("          #{code}")
+    lines.append("        </foreach>")
+    lines.append("      </if>")
+    lines.append("    </where>")
+    lines.append("    order by CREATE_TIME desc")
+    lines.append("  </select>")
+    lines.append("  <insert id=\"insertBatch\" parameterType=\"java.util.List\">")
+    lines.append("    insert into %s (%s) values" % (table, ", ".join(c.column for c in cols)))
+    lines.append("    <foreach collection=\"list\" item=\"item\" separator=\",\">")
+    lines.append("      (%s)" % ", ".join("#{item.%s,jdbcType=%s}" % (c.field, c.jdbc) for c in cols))
+    lines.append("    </foreach>")
+    lines.append("  </insert>")
+    lines.append("  <update id=\"updateByTenant\" parameterType=\"%s\">" % entity)
+    lines.append("    update %s" % table)
+    lines.append("    <set>")
+    for c in cols:
+        if c.field in ("id", "tenantId"):
+            continue
+        lines.append("      <if test=\"%s != null\">%s = #{%s,jdbcType=%s},</if>"
+                     % (c.field, c.column, c.field, c.jdbc))
+    lines.append("    </set>")
+    lines.append("    where TENANT_ID = #{tenantId}")
+    lines.append("    <if test=\"bizCode != null\">")
+    lines.append("      and BIZ_CODE = #{bizCode}")
+    lines.append("    </if>")
+    lines.append("  </update>")
+    lines.append("  <delete id=\"deleteByTenant\" parameterType=\"java.lang.Long\">")
+    lines.append("    delete from %s where TENANT_ID = #{tenantId}" % table)
+    lines.append("    <choose>")
+    lines.append("      <when test=\"tenantId != null\">and DEL_FLAG = '0'</when>")
+    lines.append("      <otherwise>and 1 = 0</otherwise>")
+    lines.append("    </choose>")
+    lines.append("  </delete>")
+    lines.append("</mapper>")
+    return "\n".join(lines) + "\n"
+
+
+def emit_center(root, tables, seed, stats):
+    java_dir = module_java_dir(root, "center", "com.demo.cust.center")
+    res_dir = module_res_dir(root, "center", "mapper")
+    for t in tables:
+        base = t["cls"]
+        write_if_changed(java_dir / "entity" / ("%s.java" % base), gen_center_entity(t, seed))
+        write_if_changed(java_dir / "mapper" / ("%sMapper.java" % base), gen_center_mapper(t, seed))
+        write_if_changed(java_dir / "service" / ("%sService.java" % base), gen_center_service(t, seed))
+        write_if_changed(java_dir / "service" / "impl" / ("%sServiceImpl.java" % base),
+                         gen_center_service_impl(t, seed))
+        write_if_changed(java_dir / "vo" / ("%sVO.java" % base), gen_center_vo(t, seed))
+        write_if_changed(res_dir / ("%sMapper.xml" % base), gen_center_xml(t, seed))
+        stats["tables"] += 1
+        stats["java"] += 5
+        stats["xml"] += 1
+
+
+# ---------------------------------------------------------------------------
+# cust-order：iBatis 2.x（sqlMap + SqlMapClient）
+# ---------------------------------------------------------------------------
+
+def gen_order_entity(t, seed):
+    return gen_simple_pojo("com.demo.cust.order.entity", t["cls"], t["columns"],
+                           "%s 表实体（iBatis 2 时代 POJO，无注解）。" % t["table"].upper(), seed)
+
+
+def gen_order_dao(t, seed):
+    cls = t["cls"]
+    lines = [header(seed), "package com.demo.cust.order.dao;", ""]
+    lines.append("import com.demo.cust.order.entity.%s;" % cls)
+    lines.append("import java.util.List;")
+    lines.append("import java.util.Map;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 表 DAO（iBatis 2 风格，语句 id 以 sqlMap namespace 为前缀）。" % t["table"].upper())
+    lines.append(" */")
+    lines.append("public interface %sDao {" % cls)
+    lines.append("")
+    lines.append("    List<%s> selectList(Map<String, Object> param);" % cls)
+    lines.append("")
+    lines.append("    %s selectById(Long id);" % cls)
+    lines.append("")
+    lines.append("    Object insert(%s record);" % cls)
+    lines.append("")
+    lines.append("    int update(%s record);" % cls)
+    lines.append("")
+    lines.append("    int delete(Long id);")
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_order_dao_impl(t, seed):
+    cls = t["cls"]
+    lines = [header(seed), "package com.demo.cust.order.dao.impl;", ""]
+    lines.append("import com.demo.cust.order.dao.%sDao;" % cls)
+    lines.append("import com.demo.cust.order.entity.%s;" % cls)
+    lines.append("import com.ibatis.sqlmap.client.SqlMapClient;")
+    lines.append("import java.sql.SQLException;")
+    lines.append("import java.util.List;")
+    lines.append("import java.util.Map;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 表 DAO 实现（SqlMapClient 直连，语句 id = 类名.方法名）。" % t["table"].upper())
+    lines.append(" */")
+    lines.append("public class %sDaoImpl implements %sDao {" % (cls, cls))
+    lines.append("")
+    lines.append("    private final SqlMapClient sqlMapClient;")
+    lines.append("")
+    lines.append("    public %sDaoImpl(SqlMapClient sqlMapClient) {" % cls)
+    lines.append("        this.sqlMapClient = sqlMapClient;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    @SuppressWarnings(\"unchecked\")")
+    lines.append("    public List<%s> selectList(Map<String, Object> param) {" % cls)
+    lines.append("        try {")
+    lines.append("            return (List<%s>) sqlMapClient.queryForList(\"%s.selectList\", param);" % (cls, cls))
+    lines.append("        } catch (SQLException e) {")
+    lines.append("            throw new IllegalStateException(\"查询 %s.selectList 失败\", e);" % cls)
+    lines.append("        }")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public %s selectById(Long id) {" % cls)
+    lines.append("        try {")
+    lines.append("            return (%s) sqlMapClient.queryForObject(\"%s.selectById\", id);" % (cls, cls))
+    lines.append("        } catch (SQLException e) {")
+    lines.append("            throw new IllegalStateException(\"查询 %s.selectById 失败\", e);" % cls)
+    lines.append("        }")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public Object insert(%s record) {" % cls)
+    lines.append("        try {")
+    lines.append("            return sqlMapClient.insert(\"%s.insert\", record);" % cls)
+    lines.append("        } catch (SQLException e) {")
+    lines.append("            throw new IllegalStateException(\"插入 %s.insert 失败\", e);" % cls)
+    lines.append("        }")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public int update(%s record) {" % cls)
+    lines.append("        try {")
+    lines.append("            return sqlMapClient.update(\"%s.update\", record);" % cls)
+    lines.append("        } catch (SQLException e) {")
+    lines.append("            throw new IllegalStateException(\"更新 %s.update 失败\", e);" % cls)
+    lines.append("        }")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public int delete(Long id) {")
+    lines.append("        try {")
+    lines.append("            return sqlMapClient.delete(\"%s.delete\", id);" % cls)
+    lines.append("        } catch (SQLException e) {")
+    lines.append("            throw new IllegalStateException(\"删除 %s.delete 失败\", e);" % cls)
+    lines.append("        }")
+    lines.append("    }")
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_order_service(t, seed):
+    cls = t["cls"]
+    lines = [header(seed), "package com.demo.cust.order.service;", ""]
+    lines.append("import com.demo.cust.order.dao.%sDao;" % cls)
+    lines.append("import com.demo.cust.order.entity.%s;" % cls)
+    lines.append("import java.util.HashMap;")
+    lines.append("import java.util.List;")
+    lines.append("import java.util.Map;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 服务（iBatis 2 DAO 之上的业务封装）。" % t["table"].upper())
+    lines.append(" */")
+    lines.append("public class %sService {" % cls)
+    lines.append("")
+    lines.append("    private final %sDao dao;" % cls)
+    lines.append("")
+    lines.append("    public %sService(%sDao dao) {" % (cls, cls))
+    lines.append("        this.dao = dao;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public List<%s> queryByTenant(Long tenantId, String bizCode, String status) {" % cls)
+    lines.append("        Map<String, Object> param = new HashMap<String, Object>();")
+    lines.append("        param.put(\"tenantId\", tenantId);")
+    lines.append("        param.put(\"bizCode\", bizCode);")
+    lines.append("        param.put(\"status\", status);")
+    lines.append("        return dao.selectList(param);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public %s load(Long id) {" % cls)
+    lines.append("        return dao.selectById(id);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public Object save(%s record) {" % cls)
+    lines.append("        return dao.insert(record);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public int modify(%s record) {" % cls)
+    lines.append("        return dao.update(record);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public int remove(Long id) {")
+    lines.append("        return dao.delete(id);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_order_sqlmap(t, seed):
+    cls = t["cls"]
+    cols = t["columns"]
+    table = t["table"].upper()
+    entity = "com.demo.cust.order.entity.%s" % cls
+    lines = [xml_header(seed).rstrip("\n")]
+    lines.append("<!DOCTYPE sqlMap PUBLIC \"-//iBATIS.com//DTD SQL Map 2.0//EN\""
+                 " \"http://www.ibatis.com/dtd/sql-map-2.dtd\">")
+    lines.append("<!-- iBatis 2.3 老风格：命名空间 + sql 片段 + include，动态标签用"
+                 " isNotNull/iterate/isEqual（2.x 没有 if/foreach/choose）。 -->")
+    lines.append("<sqlMap namespace=\"%s\">" % cls)
+    lines.append("  <resultMap id=\"BaseResultMap\" class=\"%s\">" % entity)
+    for i, c in enumerate(cols):
+        lines.append("    <result property=\"%s\" column=\"%s\" jdbcType=\"%s\" />"
+                     % (c.field, c.column, c.jdbc))
+    lines.append("  </resultMap>")
+    lines.append("  <sql id=\"Base_Column_List\">")
+    lines.append("    " + ", ".join(c.column for c in cols))
+    lines.append("  </sql>")
+    lines.append("  <select id=\"selectList\" resultMap=\"BaseResultMap\" parameterClass=\"java.util.Map\">")
+    lines.append("    select <include refid=\"Base_Column_List\" /> from %s" % table)
+    lines.append("    <dynamic prepend=\"WHERE\">")
+    lines.append("      <isNotNull prepend=\"AND\" property=\"tenantId\">")
+    lines.append("        TENANT_ID = #tenantId#")
+    lines.append("      </isNotNull>")
+    lines.append("      <isNotEmpty prepend=\"AND\" property=\"bizCode\">")
+    lines.append("        BIZ_CODE = #bizCode#")
+    lines.append("      </isNotEmpty>")
+    lines.append("      <isEqual prepend=\"AND\" property=\"status\" compareValue=\"1\">")
+    lines.append("        STATUS = #status#")
+    lines.append("      </isEqual>")
+    lines.append("      <isNotNull prepend=\"AND\" property=\"idList\">")
+    lines.append("        <iterate property=\"idList\" open=\"ID in (\" close=\")\" conjunction=\",\">")
+    lines.append("          #idList[]#")
+    lines.append("        </iterate>")
+    lines.append("      </isNotNull>")
+    lines.append("    </dynamic>")
+    lines.append("    order by CREATE_TIME desc")
+    lines.append("  </select>")
+    lines.append("  <select id=\"selectById\" resultMap=\"BaseResultMap\" parameterClass=\"java.lang.Long\">")
+    lines.append("    select <include refid=\"Base_Column_List\" /> from %s where ID = #value#" % table)
+    lines.append("  </select>")
+    lines.append("  <insert id=\"insert\" parameterClass=\"%s\">" % entity)
+    lines.append("    insert into %s (%s) values (%s)"
+                 % (table, ", ".join(c.column for c in cols),
+                    ", ".join("#%s#" % c.field for c in cols)))
+    lines.append("    <selectKey resultClass=\"java.lang.Long\" keyProperty=\"id\">")
+    lines.append("      select LAST_INSERT_ID()")
+    lines.append("    </selectKey>")
+    lines.append("  </insert>")
+    lines.append("  <update id=\"update\" parameterClass=\"%s\">" % entity)
+    lines.append("    update %s" % table)
+    lines.append("    <dynamic prepend=\"SET\">")
+    for c in cols:
+        if c.field == "id":
+            continue
+        lines.append("      <isNotNull prepend=\",\" property=\"%s\">%s = #%s#</isNotNull>"
+                     % (c.field, c.column, c.field))
+    lines.append("    </dynamic>")
+    lines.append("    where ID = #id#")
+    lines.append("  </update>")
+    lines.append("  <delete id=\"delete\" parameterClass=\"java.lang.Long\">")
+    lines.append("    delete from %s where ID = #value#" % table)
+    lines.append("  </delete>")
+    lines.append("</sqlMap>")
+    return "\n".join(lines) + "\n"
+
+
+def gen_order_config(root, tables, seed):
+    lines = [xml_header(seed).rstrip("\n")]
+    lines.append("<!DOCTYPE sqlMapConfig PUBLIC \"-//iBATIS.com//DTD SQL Map Config 2.0//EN\""
+                 " \"http://www.ibatis.com/dtd/sql-map-config-2.dtd\">")
+    lines.append("<sqlMapConfig>")
+    lines.append("  <settings cacheModelsEnabled=\"true\" enhancementEnabled=\"false\""
+                 " lazyLoadingEnabled=\"false\" maxRequests=\"4000\" maxSessions=\"1500\""
+                 " maxTransactions=\"200\" useStatementNamespaces=\"true\" />")
+    for t in tables:
+        lines.append("  <sqlMap resource=\"sqlmap/%s.xml\" />" % t["cls"])
+    lines.append("</sqlMapConfig>")
+    return "\n".join(lines) + "\n"
+
+
+def gen_order_factory(seed):
+    lines = [header(seed), "package com.demo.cust.order.config;", ""]
+    lines.append("import com.ibatis.common.resources.Resources;")
+    lines.append("import com.ibatis.sqlmap.client.SqlMapClient;")
+    lines.append("import com.ibatis.sqlmap.client.SqlMapClientBuilder;")
+    lines.append("import java.io.IOException;")
+    lines.append("import java.io.Reader;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * iBatis 2 SqlMapClient 懒加载工厂（对应 resources/sqlmap/order-sqlmap-config.xml）。")
+    lines.append(" */")
+    lines.append("public final class OrderSqlMapClientFactory {")
+    lines.append("")
+    lines.append("    private static volatile SqlMapClient client;")
+    lines.append("")
+    lines.append("    private OrderSqlMapClientFactory() {")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public static SqlMapClient getInstance() {")
+    lines.append("        if (client == null) {")
+    lines.append("            synchronized (OrderSqlMapClientFactory.class) {")
+    lines.append("                if (client == null) {")
+    lines.append("                    client = build();")
+    lines.append("                }")
+    lines.append("            }")
+    lines.append("        }")
+    lines.append("        return client;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    private static SqlMapClient build() {")
+    lines.append("        Reader reader = null;")
+    lines.append("        try {")
+    lines.append("            reader = Resources.getResourceAsReader(\"sqlmap/order-sqlmap-config.xml\");")
+    lines.append("            return SqlMapClientBuilder.buildSqlMapClient(reader);")
+    lines.append("        } catch (IOException e) {")
+    lines.append("            throw new IllegalStateException(\"初始化 iBatis SqlMapClient 失败\", e);")
+    lines.append("        } finally {")
+    lines.append("            if (reader != null) {")
+    lines.append("                try {")
+    lines.append("                    reader.close();")
+    lines.append("                } catch (IOException ignored) {")
+    lines.append("                    // 关闭失败不影响客户端使用")
+    lines.append("                }")
+    lines.append("            }")
+    lines.append("        }")
+    lines.append("    }")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def emit_order(root, tables, seed, stats):
+    java_dir = module_java_dir(root, "order", "com.demo.cust.order")
+    res_dir = module_res_dir(root, "order", "sqlmap")
+    for t in tables:
+        base = t["cls"]
+        write_if_changed(java_dir / "entity" / ("%s.java" % base), gen_order_entity(t, seed))
+        write_if_changed(java_dir / "dao" / ("%sDao.java" % base), gen_order_dao(t, seed))
+        write_if_changed(java_dir / "dao" / "impl" / ("%sDaoImpl.java" % base), gen_order_dao_impl(t, seed))
+        write_if_changed(java_dir / "service" / ("%sService.java" % base), gen_order_service(t, seed))
+        write_if_changed(res_dir / ("%s.xml" % base), gen_order_sqlmap(t, seed))
+        stats["tables"] += 1
+        stats["java"] += 4
+        stats["xml"] += 1
+    write_if_changed(java_dir / "config" / "OrderSqlMapClientFactory.java", gen_order_factory(seed))
+    write_if_changed(res_dir / "order-sqlmap-config.xml", gen_order_config(root, tables, seed))
+    stats["java"] += 1
+    stats["xml"] += 1
+
+
+# ---------------------------------------------------------------------------
+# cust-report：JPA 注解实体 + JdbcTemplate 字符串 SQL
+# ---------------------------------------------------------------------------
+
+def gen_report_entity(t, seed):
+    cls = t["cls"]
+    lines = [header(seed), "package com.demo.cust.report.entity;", ""]
+    lines.append("import javax.persistence.Column;")
+    lines.append("import javax.persistence.Entity;")
+    lines.append("import javax.persistence.Id;")
+    lines.append("import javax.persistence.Table;")
+    lines.append("import javax.persistence.Temporal;")
+    lines.append("import javax.persistence.TemporalType;")
+    for imp in java_imports({c.jtype for c in t["columns"]}, {"java.io.Serializable"}):
+        lines.append("import %s;" % imp)
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 报表实体（JPA 注解，javax.persistence 2.2）。" % t["table"].upper())
+    lines.append(" */")
+    lines.append("@Entity")
+    lines.append('@Table(name = "%s")' % t["table"])
+    lines.append("public class %s implements Serializable {" % cls)
+    lines.append("")
+    lines.append("    private static final long serialVersionUID = 1L;")
+    for c in t["columns"]:
+        lines.append("")
+        lines.append("    /** %s */" % c.label)
+        if c.field == "id":
+            lines.append("    @Id")
+        if c.jtype == "Date":
+            lines.append("    @Temporal(TemporalType.TIMESTAMP)")
+        lines.append('    @Column(name = "%s")' % c.column)
+        lines.append("    private %s %s;" % (c.jtype, c.field))
+    for c in t["columns"]:
+        lines.append("")
+        lines.append("    public %s get%s() {" % (c.jtype, c.cap))
+        lines.append("        return %s;" % c.field)
+        lines.append("    }")
+        lines.append("")
+        lines.append("    public void set%s(%s %s) {" % (c.cap, c.jtype, c.field))
+        lines.append("        this.%s = %s;" % (c.field, c.field))
+        lines.append("    }")
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_report_repository(t, seed):
+    cls = t["cls"]
+    cols = t["columns"]
+    table = t["table"].upper()
+    columns_csv = ", ".join(c.column for c in cols[:6])
+    lines = [header(seed), "package com.demo.cust.report.repository;", ""]
+    lines.append("import com.demo.cust.report.entity.%s;" % cls)
+    if any(c.jtype == "Date" for c in cols):
+        lines.append("import java.util.Date;")
+    lines.append("import java.sql.ResultSet;")
+    lines.append("import java.sql.SQLException;")
+    lines.append("import java.util.List;")
+    lines.append("import org.springframework.jdbc.core.JdbcTemplate;")
+    lines.append("import org.springframework.jdbc.core.RowMapper;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * %s 报表仓储（JdbcTemplate + 字符串 SQL）。" % table)
+    lines.append(" */")
+    lines.append("public class %sRepository {" % cls)
+    lines.append("")
+    lines.append("    private static final String SELECT_BY_TENANT =")
+    lines.append('            "select %s from %s where TENANT_ID = ? and DEL_FLAG = \'0\'"'
+                 % (columns_csv, table))
+    lines.append('            + " order by CREATE_TIME desc";')
+    lines.append("")
+    lines.append("    private static final String COUNT_BY_STATUS =")
+    lines.append('            "select count(1) from %s where STATUS = ?";' % table)
+    lines.append("")
+    lines.append("    private static final String UPDATE_STATUS =")
+    lines.append('            "update %s set STATUS = ?, UPDATE_TIME = ? where ID = ?";' % table)
+    lines.append("")
+    lines.append("    private static final RowMapper<%s> ROW_MAPPER = new RowMapper<%s>() {" % (cls, cls))
+    lines.append("        public %s mapRow(ResultSet rs, int rowNum) throws SQLException {" % cls)
+    lines.append("            %s row = new %s();" % (cls, cls))
+    lines.append("            row.setId(rs.getLong(\"ID\"));")
+    lines.append("            row.setTenantId(rs.getLong(\"TENANT_ID\"));")
+    lines.append("            row.setBizCode(rs.getString(\"BIZ_CODE\"));")
+    lines.append("            row.setBizName(rs.getString(\"BIZ_NAME\"));")
+    lines.append("            row.setStatus(rs.getString(\"STATUS\"));")
+    lines.append("            row.setCreateTime(rs.getTimestamp(\"CREATE_TIME\"));")
+    lines.append("            return row;")
+    lines.append("        }")
+    lines.append("    };")
+    lines.append("")
+    lines.append("    private final JdbcTemplate jdbcTemplate;")
+    lines.append("")
+    lines.append("    public %sRepository(JdbcTemplate jdbcTemplate) {" % cls)
+    lines.append("        this.jdbcTemplate = jdbcTemplate;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public List<%s> listByTenant(Long tenantId) {" % cls)
+    lines.append("        return jdbcTemplate.query(SELECT_BY_TENANT, new Object[] { tenantId }, ROW_MAPPER);")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public long countByStatus(String status) {")
+    lines.append("        Long count = jdbcTemplate.queryForObject(COUNT_BY_STATUS,"
+                 " new Object[] { status }, Long.class);")
+    lines.append("        return count == null ? 0L : count.longValue();")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public int updateStatus(String status, Date updateTime, Long id) {")
+    lines.append("        return jdbcTemplate.update(UPDATE_STATUS, new Object[] { status, updateTime, id });")
+    lines.append("    }")
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def gen_report_dto(t, seed):
+    cls = t["cls"] + "DTO"
+    cols = [c for c in t["columns"] if c.field != "id"][:5]
+    return gen_simple_pojo("com.demo.cust.report.dto", cls,
+                           cols, "%s 报表出参。" % t["table"].upper(), seed)
+
+
+def emit_report(root, tables, seed, stats):
+    java_dir = module_java_dir(root, "report", "com.demo.cust.report")
+    for t in tables:
+        base = t["cls"]
+        write_if_changed(java_dir / "entity" / ("%s.java" % base), gen_report_entity(t, seed))
+        write_if_changed(java_dir / "repository" / ("%sRepository.java" % base),
+                         gen_report_repository(t, seed))
+        write_if_changed(java_dir / "dto" / ("%sDTO.java" % base), gen_report_dto(t, seed))
+        stats["tables"] += 1
+        stats["java"] += 3
+
+
+# ---------------------------------------------------------------------------
+# cust-gateway：跨模块同名类
+# ---------------------------------------------------------------------------
+
+def gen_gateway_group_class(name, pkg, seed, variant):
+    """同名类的两种轻微不同实现，用来压短名多候选解析。"""
+    cols = [
+        Col("id", "ID", "Long", "BIGINT", "主键ID"),
+        Col("code", "CODE", "String", "VARCHAR", "编码"),
+        Col("name", "NAME", "String", "VARCHAR", "名称"),
+        Col("payload", "PAYLOAD", "String", "VARCHAR", "载荷"),
+        Col("createTime", "CREATE_TIME", "Date", "TIMESTAMP", "创建时间"),
+    ]
+    if variant == "gateway":
+        doc = "%s 网关层视图（与业务模块同名，复现短名多候选解析）。" % name
+    else:
+        doc = "%s 业务模块侧同名视图（与网关层同名，复现短名多候选解析）。" % name
+    return gen_simple_pojo(pkg, name, cols, doc, seed)
+
+
+def gen_gateway_route_registry(seed):
+    lines = [header(seed), "package com.demo.cust.gateway.router;", ""]
+    lines.append("import com.demo.cust.gateway.api.CustomerProfile;")
+    lines.append("import com.demo.cust.gateway.api.DictItem;")
+    lines.append("import com.demo.cust.gateway.api.PageQuery;")
+    lines.append("import java.util.ArrayList;")
+    lines.append("import java.util.List;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * 网关路由注册表：引用网关侧同名类，避免生成物成为纯孤立文件。")
+    lines.append(" */")
+    lines.append("public class RouteRegistry {")
+    lines.append("")
+    lines.append("    private final List<String> routes = new ArrayList<String>();")
+    lines.append("")
+    lines.append("    public void register(String path, CustomerProfile profile) {")
+    lines.append("        routes.add(path + \"#\" + profile.getCode());")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public void registerDict(DictItem item) {")
+    lines.append("        routes.add(\"dict#\" + item.getCode());")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public List<String> query(PageQuery query) {")
+    lines.append("        List<String> matched = new ArrayList<String>();")
+    lines.append("        for (String route : routes) {")
+    lines.append("            if (query.getName() == null || route.contains(query.getName())) {")
+    lines.append("                matched.add(route);")
+    lines.append("            }")
+    lines.append("        }")
+    lines.append("        return matched;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    public int size() {")
+    lines.append("        return routes.size();")
+    lines.append("    }")
+    lines.append("")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def emit_gateway(root, seed, stats):
+    groups = []
+    for name, other_module, gateway_sub in GATEWAY_GROUPS:
+        gw_dir = module_java_dir(root, "gateway", "com.demo.cust.gateway.%s" % gateway_sub)
+        write_if_changed(gw_dir / ("%s.java" % name),
+                         gen_gateway_group_class(name, "com.demo.cust.gateway.%s" % gateway_sub,
+                                                 seed, "gateway"))
+        other_dir = module_java_dir(root, other_module,
+                                    "com.demo.cust.%s.contract" % other_module)
+        write_if_changed(other_dir / ("%s.java" % name),
+                         gen_gateway_group_class(name, "com.demo.cust.%s.contract" % other_module,
+                                                 seed, "business"))
+        groups.append({"name": name, "packages": [
+            "com.demo.cust.gateway.%s" % gateway_sub,
+            "com.demo.cust.%s.contract" % other_module,
+        ]})
+        stats["java"] += 2
+    write_if_changed(module_java_dir(root, "gateway", "com.demo.cust.gateway.router") / "RouteRegistry.java",
+                     gen_gateway_route_registry(seed))
+    stats["java"] += 1
+    stats["gateway_groups"] = groups
+
+
+# ---------------------------------------------------------------------------
+# 清理
+# ---------------------------------------------------------------------------
+
+def clean(root):
+    root = Path(root)
+    removed = 0
+    for module_dir in MODULE_JAVA_ROOT.values():
+        base = root / module_dir
+        if not base.exists():
+            continue
+        for path in base.rglob("*"):
+            if not path.is_file():
+                continue
+            if path.suffix not in (".java", ".xml"):
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            if MARKER in text:
+                path.unlink()
+                removed += 1
+    # 删除空目录
+    for module_dir in MODULE_JAVA_ROOT.values():
+        base = root / module_dir
+        if not base.exists():
+            continue
+        for path in sorted(base.rglob("*"), key=lambda p: len(str(p)), reverse=True):
+            if path.is_dir():
+                try:
+                    path.rmdir()
+                except OSError:
+                    pass
+    return removed
+
+
+# ---------------------------------------------------------------------------
+# 主流程
+# ---------------------------------------------------------------------------
+
+def parse_table_counts(text):
+    counts = dict(DEFAULT_TABLES)
+    if not text:
+        return counts
+    for part in text.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "=" not in part:
+            raise SystemExit("--tables-per-module 需要形如 metadata=1200,center=800: %r" % part)
+        key, value = part.split("=", 1)
+        key = key.strip()
+        if key not in DEFAULT_TABLES:
+            raise SystemExit("未知模块 %r（可选：%s）" % (key, ",".join(sorted(DEFAULT_TABLES))))
+        counts[key] = int(value.strip())
+    return counts
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="cust-big-demo 大工程语料生成器")
+    parser.add_argument("--root", default=str(Path(__file__).resolve().parent.parent),
+                        help="cust-big-demo 根目录（默认脚本上级目录）")
+    parser.add_argument("--seed", default="20261113", help="随机种子（默认 20261113）")
+    parser.add_argument("--tables-per-module", default=None,
+                        help='各模块表数，形如 "metadata=1200,center=800,order=300,report=200"')
+    parser.add_argument("--modules", default="metadata,center,order,report,gateway",
+                        help="只生成指定模块，逗号分隔")
+    parser.add_argument("--clean", action="store_true", help="删除带生成标记的文件后退出")
+    parser.add_argument("--print-plan", action="store_true", help="只打印表数分配，不写文件")
+    args = parser.parse_args(argv)
+
+    root = Path(args.root).resolve()
+    if not (root / "pom.xml").exists():
+        raise SystemExit("--root 指向的不是 cust-big-demo（缺 pom.xml）：%s" % root)
+
+    if args.clean:
+        removed = clean(root)
+        print("已删除生成文件 %d 个" % removed)
+        return 0
+
+    counts = parse_table_counts(args.tables_per_module)
+    modules = [m.strip() for m in args.modules.split(",") if m.strip()]
+    for m in modules:
+        if m != "gateway" and m not in DEFAULT_TABLES:
+            raise SystemExit("未知模块 %r" % m)
+
+    if args.print_plan:
+        for m in modules:
+            if m == "gateway":
+                print("gateway: %d 组同名类" % len(GATEWAY_GROUPS))
+            else:
+                print("%s: %d 张表" % (m, counts[m]))
+        return 0
+
+    stats = {"tables": 0, "java": 0, "xml": 0, "gateway_groups": []}
+    per_module = {}
+
+    for module in modules:
+        if module == "gateway":
+            sub = {"tables": 0, "java": 0, "xml": 0, "gateway_groups": []}
+            emit_gateway(root, args.seed, sub)
+            stats["java"] += sub["java"]
+            stats["gateway_groups"] = sub["gateway_groups"]
+            per_module["gateway"] = {"tables": 0, "java": sub["java"], "xml": 0}
+            continue
+        tables = build_tables(module, counts[module], args.seed)
+        sub = {"tables": 0, "java": 0, "xml": 0}
+        if module == "metadata":
+            emit_metadata(root, tables, args.seed, sub)
+        elif module == "center":
+            emit_center(root, tables, args.seed, sub)
+        elif module == "order":
+            emit_order(root, tables, args.seed, sub)
+        elif module == "report":
+            emit_report(root, tables, args.seed, sub)
+        per_module[module] = dict(sub)
+        stats["tables"] += sub["tables"]
+        stats["java"] += sub["java"]
+        stats["xml"] += sub["xml"]
+
+    summary = {
+        "seed": args.seed,
+        "tablesPerModule": counts,
+        "modules": per_module,
+        "totals": {
+            "tables": stats["tables"],
+            "javaFiles": stats["java"],
+            "xmlFiles": stats["xml"],
+            "gatewayDuplicateNameGroups": len(stats["gateway_groups"]),
+        },
+    }
+    summary_path = root / "tools" / "generated-summary.json"
+    write_if_changed(summary_path, json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+
+    print("生成完成（seed=%s）" % args.seed)
+    for module in modules:
+        info = per_module.get(module, {})
+        print("  %-9s 表 %4d   java %5d   xml %4d"
+              % (module, info.get("tables", 0), info.get("java", 0), info.get("xml", 0)))
+    print("  合计      表 %4d   java %5d   xml %4d   同名类 %d 组"
+          % (stats["tables"], stats["java"], stats["xml"], len(stats["gateway_groups"])))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

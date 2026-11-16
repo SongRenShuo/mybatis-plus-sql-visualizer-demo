@@ -9,3 +9,7 @@ logs/
 .xcodemap/
 # 本地凭据与私有台账（与插件仓同构：gitee-token.json / github-token.json / test-databases.md 等）
 .local/
+.alma-snapshots
+# IDEA 的 Maven 导入把未解析的 ${project.build.directory} 当成模块相对路径，
+# 每次 Build 会把 src/main/resources 拷进这个垃圾目录；留着只为兜底不进版本库。
+**/${project.build.directory}/

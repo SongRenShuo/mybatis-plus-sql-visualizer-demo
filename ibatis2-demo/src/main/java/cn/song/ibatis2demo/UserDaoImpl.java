@@ -18,8 +18,15 @@ public class UserDaoImpl implements UserDao {
 
     private final SqlMapClient client;
 
+    /**
+     * 与 {@link #client} 指向同一个 SqlMapClient，只是**故意**叫 baseDao：真机里的接收者就叫 baseDao，
+     * 插件侧「DAO 名后缀」家族排除正是按这个命名触发。保留这个命名才和真机形态一致（T-IbatisAtShapeGate）。
+     */
+    private final SqlMapClient baseDao;
+
     public UserDaoImpl(SqlMapClient client) {
         this.client = client;
+        this.baseDao = client;
     }
 
     @Override
@@ -131,5 +138,12 @@ public class UserDaoImpl implements UserDao {
     public void callUserProcedure(User u) throws SQLException {
         // procedure 形态语料：先在数据库建 PKG_USER 包才能执行
         client.update("User.callUserProcedure", u);
+    }
+
+    @Override
+    public Object queryAccountTypeByAccountType(Map<String, Object> inMap) throws SQLException {
+        // 形态语料：语句名里的 @ 属于 namespace 段（不是分隔符）。
+        // 接收者用 baseDao 也是刻意的——真机里它就叫这个名字。
+        return baseDao.queryForObject("cQAccountTypeByAccountType@custmg.qAccountTypeByAccountType", inMap);
     }
 }

@@ -84,4 +84,13 @@ public interface UserDao {
 
     /** procedure 形态语料：{call PKG_USER.SYNC_USER(?,?,?)}——执行需要先建包 */
     void callUserProcedure(User u) throws SQLException;
+
+    /**
+     * @ 语句名复现用例（T-IbatisAtShapeGate）：语句名全文是
+     * {@code cQAccountTypeByAccountType@custmg.qAccountTypeByAccountType}。
+     *
+     * <p>实现类里故意用名为 {@code baseDao} 的接收者调用它——真机的 DAO 接收者就叫 baseDao，
+     * 且这个命名会命中插件侧「DAO 名后缀」的家族排除。两处形态都是真机原样，别改成 client / 常规命名。</p>
+     */
+    Object queryAccountTypeByAccountType(java.util.Map<String, Object> inMap) throws SQLException;
 }

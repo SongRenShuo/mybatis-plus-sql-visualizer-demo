@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE sqlMap PUBLIC "-//iBATIS.com//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+<!--
+  复现语料：sqlMap 的 namespace 段里带 @（T-IbatisAtShapeGate，2026-11-17）。
+
+  站点自研框架把「租户/应用前缀」直接拼进 namespace，真实报障语句名全文是
+  cQAccountTypeByAccountType@custmg.qAccountTypeByAccountType——@ 是 namespace 的一部分，
+  不是分隔符。插件快捷键回落链的 iBatis 形状正则不放行 @，会把调用让给 JDBC 通道，
+  于是同一行上 gutter 图标能预览、Alt+Shift+Q 却报「未在光标处找到可预览的 SQL 源」。
+
+  这份 sqlMap 只为复现「带 @ 的 namespace 段」，不参与 Ibatis2Main / Ibatis2ExecMain 的主执行链
+  （那两个入口只按 User.xml 的语句走）。语句语法本身仍是标准 iBatis 2：#x# 占位符、
+  <select id resultClass> 结构，DTD 可接受。
+-->
+<sqlMap namespace="cQAccountTypeByAccountType@custmg">
+
+  <!-- 语句名运行期全文：cQAccountTypeByAccountType@custmg.qAccountTypeByAccountType -->
+  <select id="qAccountTypeByAccountType" resultClass="java.util.HashMap">
+    SELECT ACCOUNT_TYPE, FLAG, SHOW_FLAG
+    FROM T_ACCOUNT_TYPE
+    WHERE ACCOUNT_TYPE = #accountType#
+  </select>
+
+</sqlMap>

@@ -8,7 +8,9 @@
   - useStatementNamespaces="true"：语句 id 会被加上 sqlMap 的 namespace 前缀（User.selectAll）；
     该开关默认是 false，本模块显式打开以覆盖「命名空间生效」这一档。
   - typeAlias：语句里用 User 而不是全限定名。
-  - 只有一个 <sqlMap>；iBatis 2 允许 xmlResultName / cacheModel 等元素，本语料不涉及。
+  - 主执行链只有 User.xml 一条 <sqlMap>；AccountType.xml 只为复现「namespace 段带 @」的语句名
+    （T-IbatisAtShapeGate），不被 Ibatis2Main / Ibatis2ExecMain 调用。iBatis 2 允许
+    xmlResultName / cacheModel 等元素，本语料不涉及。
   - transactionManager/dataSource 只服务 Ibatis2ExecMain 的真实执行；Ibatis2Main 的离线渲染不碰这条链。
 -->
 <sqlMapConfig>
@@ -33,4 +35,8 @@
   </transactionManager>
 
   <sqlMap resource="sqlmap/User.xml"/>
+
+  <!-- @ 语句名复现语料（T-IbatisAtShapeGate）：namespace 段带 @，运行期 id 形如
+       cQAccountTypeByAccountType@custmg.qAccountTypeByAccountType。 -->
+  <sqlMap resource="sqlmap/AccountType.xml"/>
 </sqlMapConfig>

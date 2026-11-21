@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.song.jdk16demo.mapper.UserMapper">
+
+    <!-- 列映射：老式 resultMap 写法（与 map-underscore-to-camel-case 配置并存作对照） -->
+    <resultMap id="userResultMap" type="cn.song.jdk16demo.entity.User">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="email" column="email"/>
+        <result property="age" column="age"/>
+        <result property="status" column="status"/>
+        <result property="createdTime" column="created_time"/>
+    </resultMap>
+
+    <sql id="baseColumns">`id`, `name`, `email`, `age`, `status`, `created_time`</sql>
+
+    <insert id="insert" parameterType="cn.song.jdk16demo.entity.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `user` (`name`, `email`, `age`, `status`, `created_time`)
+        VALUES (#{name}, #{email}, #{age}, #{status}, #{createdTime})
+    </insert>
+
+    <select id="selectById" resultMap="userResultMap">
+        SELECT
+        <include refid="baseColumns"/>
+        FROM `user`
+        WHERE `id` = #{id}
+    </select>
+
+    <!-- 动态 WHERE：三个可选条件按传参逐个拼接 -->
+    <select id="selectList" parameterType="cn.song.jdk16demo.entity.User" resultMap="userResultMap">
+        SELECT
+        <include refid="baseColumns"/>
+        FROM `user`
+        <where>
+            <if test="name != null and name != ''">
+                AND `name` LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="status != null">
+                AND `status` = #{status}
+            </if>
+            <if test="age != null">
+                AND `age` &gt;= #{age}
+            </if>
+        </where>
+        ORDER BY `id` DESC
+    </select>
+
+    <!-- 动态 SET：只更新非空字段 -->
+    <update id="updateById" parameterType="cn.song.jdk16demo.entity.User">
+        UPDATE `user`
+        <set>
+            <if test="name != null">`name` = #{name},</if>
+            <if test="email != null">`email` = #{email},</if>
+            <if test="age != null">`age` = #{age},</if>
+            <if test="status != null">`status` = #{status},</if>
+        </set>
+        WHERE `id` = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM `user` WHERE `id` = #{id}
+    </delete>
+
+    <!-- choose 分支 + foreach IN：keyword 为空走 otherwise，再叠加可选 id 集合 -->
+    <select id="searchByKeyword" resultMap="userResultMap">
+        SELECT
+        <include refid="baseColumns"/>
+        FROM `user`
+        <where>
+            <choose>
+                <when test="keyword != null and keyword != ''">
+                    (`name` LIKE CONCAT('%', #{keyword}, '%') OR `email` LIKE CONCAT('%', #{keyword}, '%'))
+                </when>
+                <otherwise>
+                    1 = 1
+                </otherwise>
+            </choose>
+            <if test="ids != null and ids.size() &gt; 0">
+                AND `id` IN
+                <foreach collection="ids" item="item" open="(" separator="," close=")">#{item}</foreach>
+            </if>
+        </where>
+        ORDER BY `id` DESC
+    </select>
+</mapper>

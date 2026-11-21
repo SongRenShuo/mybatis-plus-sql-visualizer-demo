@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>cn.song</groupId>
+  <artifactId>jdk16-demo</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+  <name>jdk16-demo</name>
+  <description>JDK 1.6 时代栈语料：Spring Boot 1.5.22（内嵌 Tomcat 7）+ MyBatis 3.4 + Connector/J 5.1 的 user 接口/实现/实体全链路</description>
+
+  <!--
+    形态要点（详见模块 README）：
+    - Boot 1.5 线最后一版 1.5.22.RELEASE：官方口径默认 Java 7，Java 6 需「附加配置」＝
+      内嵌容器降级 Tomcat 7.0.x（官方 howto §73.16 Use Tomcat 7）+ 单独补 tomcat-juli；
+    - java.version=1.6：编译走 toolchains 选中的真 JDK 6 javac（mvnd 宿主 JVM 是 17，
+      JDK 17 javac 不支持 -target 1.6，不能用宿主编译器凑数）；
+    - mysql.version 覆盖为 5.1.49：Connector/J 8.x 要 Java 8，JDK 6 只能跑 5.1 线
+      （本机 root 为 mysql_native_password，5.1 驱动可直连 MySQL 8）。
+  -->
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>1.5.22.RELEASE</version>
+    <relativePath/>
+  </parent>
+
+  <properties>
+    <java.version>1.6</java.version>
+    <!-- 官方 howto §73.16：Tomcat 7 = Servlet 3.0 / Java 6+，是 Java 6 运行 Boot 1.5 的官方配方 -->
+    <tomcat.version>7.0.109</tomcat.version>
+    <!-- JDK 6 能跑的最后一条 Connector/J 5.1 线（Boot 1.5 默认管理 5.1.47，这里统一到最后版） -->
+    <mysql.version>5.1.49</mysql.version>
+    <!-- jackson-databind 2.8.0 起就是 Java 7 字节码（javap 实测 major 51），2.7.9 是最后一条 Java 6 线（实测 major 50）；
+         走 Boot 的 jackson.version → jackson-bom 属性入口全线降级 -->
+    <jackson.version>2.7.9</jackson.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <!-- 官方 §73.16 配方第二步：内嵌 Tomcat 7 需要单独引入 tomcat-juli -->
+    <dependency>
+      <groupId>org.apache.tomcat</groupId>
+      <artifactId>tomcat-juli</artifactId>
+      <version>${tomcat.version}</version>
+    </dependency>
+    <!-- JDBC 起点：tomcat-jdbc 连接池（Boot 1.x 默认池，非 Hikari）+ 事务 + schema.sql 启动执行链 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
+    <!--
+      不用 mybatis-spring-boot-starter：实测其 1.3.x 自动装配的构造器注入在宿主 JDK 17 的测试 JVM 下
+      实例化失败（JDK 8 对照通过，触发随 JVM 版本变化，详见 MyBatisConfig 类注释与模块 README）。
+      直接用 2012~2014 时代的手写装配形态——mybatis + mybatis-spring + 手写 SqlSessionFactoryBean。
+    -->
+    <dependency>
+      <groupId>org.mybatis</groupId>
+      <artifactId>mybatis</artifactId>
+      <version>3.4.6</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mybatis</groupId>
+      <artifactId>mybatis-spring</artifactId>
+      <version>1.3.2</version>
+    </dependency>
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <!-- assertj-core 2.6.0 是 Java 7 字节码（javap 实证 major 51），本模块测试只用 JUnit 断言，排除 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.assertj</groupId>
+          <artifactId>assertj-core</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!--
+        本模块的编译与测试都必须在真 JDK 6 上进行：
+        - maven-compiler（fork javac）与 surefire（fork 测试 JVM）都会选这条 toolchain；
+        - toolchain 实体在 ~/.m2/toolchains.xml（version 1.6 → D:/HuanJing/Java/jdk1.6.0_119）；
+        - 没有该 toolchain 时构建直接失败——刻意设计：JDK 6 语料不允许被高版本 javac 静默代编。
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-toolchains-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>toolchain</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <toolchains>
+            <jdk>
+              <version>1.6</version>
+            </jdk>
+          </toolchains>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <!--
+        Boot 1.5 parent 固定 surefire 2.18.1：实测该版本不把 toolchain 落到 fork 出的测试 JVM
+        （fork 的是宿主 JVM，mvnd 下即 17）；升 2.22.2 后 fork 落在 toolchain 的真 JDK 6 上
+        （surefire XML java.version=1.6.0-119 实证，见模块 README 验证记录）。
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.22.2</version>
+        <configuration>
+          <!-- JDK 6 是 PermGen 时代；控制台按 UTF-8 输出（JVM 默认跟随系统 GBK，会乱码） -->
+          <argLine>-XX:MaxPermSize=256m -Dfile.encoding=UTF-8</argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

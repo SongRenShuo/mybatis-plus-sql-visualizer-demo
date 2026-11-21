@@ -57,5 +57,11 @@
         <module>shadow-entity-demo</module>
         <!-- Oracle 增强捕获复现语料：MyBatis-Plus 业务 SQL 全走 PreparedStatement，见模块 README -->
         <module>oracle-demo</module>
+        <!--
+          JDK 1.6 时代栈语料：Spring Boot 1.5.22 + 内嵌 Tomcat 7 + MyBatis 3.4 + Connector/J 5.1。
+          编译与测试强制走 toolchains 的真 JDK 6（mvnd 宿主 JVM 17 不能 -target 1.6），
+          需 ~/.m2/toolchains.xml 提供 version=1.6 实体，缺它则本模块构建失败（刻意设计），见模块 README。
+        -->
+        <module>jdk16-demo</module>
     </modules>
 </project>

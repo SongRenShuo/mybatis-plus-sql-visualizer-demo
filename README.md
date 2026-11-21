@@ -27,6 +27,7 @@
 | [shadow-entity-demo](shadow-entity-demo) | 8089 / jpa_demo | 同包同名影子实体复现（jar 内宿主） | JAR 版实体 + 自定义 DAO + HQL 方法体全在依赖 JAR [`shadow-entity-lib`](shadow-entity-lib) 里，宿主源码里**另有**一份同 FQN 影子实体（表 `wms_task_project` vs JAR 版 `wms_task_jar`）；三个调用点（JAR 内 DAO / JAR 内 service / 工程内 service 对照组）复现「实体不可解析，降级为 `task.*`」，README 含 sources jar 附加与无源码反编译视图两种形态的走查步骤与预期读数 |
 | [shadow-entity-lib](shadow-entity-lib) | — / —（非 Boot 应用） | 上面的 JAR 态语料 | 普通 JAR：`com.example.shadow.model.WmsTask`（表 `wms_task_jar`）+ `CommonDao`（双数组 `findByQuery`）+ 带 HQL 字面量的 `WmsTaskJarDao` / `WmsTaskJarService`；配 `maven-source-plugin` 产出 `-sources.jar`（第二形态走查用） |
 | [ibatis2-demo](ibatis2-demo) | — / —（非 Boot 应用） | iBatis 2.x（sqlMap 2.0 DTD） | 原生 iBatis 2.3.4.726 语料（`com.ibatis.*`，非 MyBatis 3）：`sqlmap-config.xml` + `sqlmap/User.xml` 覆盖 `#x#` / `#x:JDBC#` / `#x:JDBC:nullValue#` / `#x,jdbcType=?#` / `$x$` / `##` / `$$`、`<isNotNull>`·`<isNotEmpty>`·`<isEqual>`·`<isGreaterThan>` 条件标签、`<iterate>`+`#ids[]#`、`<selectKey type="pre">`、`parameterMap` 手写 `?` 与「`#` 不转 `?`」分支、`<sql>/<include>`、`<procedure>`、resultMap 与 N+1；`Ibatis2Main` 不连库直接渲染并打印 SQL，作插件 iBatis 静态渲染的人工验收与回归夹具 |
+| [jdk16-demo](jdk16-demo) | 8090 / jdk16_demo | JDK 1.6 时代栈（Spring Boot 1.5.22 + 内嵌 Tomcat 7 + MyBatis 3.4） | 真 JDK 1.6（Zulu 6.22 win64）上编译、测试、运行的 user 接口/实现/实体全链路：编译与测试 JVM 均经 Maven toolchains 落在 JDK 6；容器按官方 howto §73.16「Use Tomcat 7」降级 7.0.109；MyBatis 走 2012~2014 手写 `SqlSessionFactoryBean` 形态（starter 自动装配在宿主 JDK 17 下实测起不来）；Connector/J 5.1.49 直连 MySQL 8（账号须 `mysql_native_password`）；jackson 锁 2.7.9（2.8 线是 Java 7 字节码）。构建需 `~/.m2/toolchains.xml` 提供 version=1.6 实体，缺它本模块构建失败（刻意），详见模块 README |
 
 ## 独立 UI 验收夹具
 
@@ -90,6 +91,8 @@ if ($LASTEXITCODE -ne 0) { throw 'In-memory assertions failed' }
 - JDK 1.8
 - Maven 3.6+（或 mvnd）
 - MySQL 5.7+ / 8.0（可选，仅运行需要；代码解析类测试不依赖数据库）
+- JDK 6 toolchain（仅 `jdk16-demo` 需要：`~/.m2/toolchains.xml` 提供 version=1.6 实体指向本机 JDK 6，
+  缺它该模块构建失败——刻意设计；其余模块不依赖）
 
 ## 构建
 
@@ -119,6 +122,7 @@ cd mybatis-plus-demo && mvn clean compile
 | kotlin_demo | `mybatis-plus-kotlin-demo/src/main/resources/db/schema.sql` | 手工执行 |
 | orm_demo | `multi-orm-demo/src/main/resources/db/schema.sql` | 手工执行 |
 | selfdev_demo | `selfdev-framework-demo/src/main/resources/db/schema.sql` | **自动**（`spring.sql.init`，每次启动重建） |
+| jdk16_demo | `jdk16-demo/src/main/resources/db/schema.sql` | **自动**（Boot 1.x `spring.datasource.initialize`，每次启动重建） |
 
 脚本可重复执行（自带 DROP TABLE），含初始化数据；实体新增表时须同步维护对应脚本。
 

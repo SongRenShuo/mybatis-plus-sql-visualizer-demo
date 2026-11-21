@@ -1,0 +1,28 @@
+server:
+  port: 8090
+  tomcat:
+    # 中文查询参数走 URL 编码：Tomcat 7 默认 URIEncoding=ISO-8859-1 会解成乱码
+    uri-encoding: UTF-8
+
+spring:
+  application:
+    name: jdk16-demo
+  datasource:
+    # Connector/J 5.1 线类名（com.mysql.cj 是 8.x 才有）；
+    # 本机 root 为 mysql_native_password，5.1 驱动才能直连 MySQL 8
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/jdk16_demo?useUnicode=true&characterEncoding=utf8&useSSL=false
+    username: root
+    password: root
+    # Boot 1.x：外部库启动也会执行 schema 脚本（默认 initialize=true；2.0 起才默认仅嵌入式库）
+    initialize: true
+    schema: classpath:db/schema.sql
+    sql-script-encoding: UTF-8
+
+# MyBatis 装配在 cn.song.jdk16demo.config.MyBatisConfig（手写 SqlSessionFactoryBean，2012~2014 老形态，
+# 不走 starter 自动装配——原因见该类注释与模块 README）
+
+logging:
+  level:
+    # MyBatis 3.4 的 SQL 日志按 mapper 命名空间打（==> Preparing / Parameters），控制台桥是插件捕获源之一
+    cn.song.jdk16demo.mapper: debug
